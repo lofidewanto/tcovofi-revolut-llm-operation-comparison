@@ -867,11 +867,11 @@ function renderTCOChart(){
 function renderAltCards(){
   const {g1,g3}=Rcash,a=A;
   const d=lang==='de'?[
-    `Nutzungsabhängige Token zu einem Mischpreis von <b>${usd(a.pFrontier)}/Mio.</b> (Listenpreis Opus-Klasse 4 $ Input / 20 $ Output, ca. 90 % Cache-Treffer). Preise sinken um ${pct(a.priceDecline)} pro Jahr. ${a.fteA} VZÄ für Gateway und FinOps.`,
+    `Nutzungsabhängige Token zu einem Mischpreis von <b>${usd(a.pFrontier)}/Mio.</b> (Listenpreis Opus-Klasse 4 $ Input / 20 $ Output, ca. 90 % Cache-Treffer). Preise sinken um ${pct(a.priceDecline)} pro Jahr. ${a.fteA} VZÄ (Vollzeitäquivalente) für Gateway und FinOps.`,
     `GLM bei einem Enterprise-Anbieter (EU-Region, keine Datenspeicherung) zu einem Mischpreis von <b>${usd(a.pOpen)}/Mio.</b>, wobei ${pct(a.fallbackShare)} des Verkehrs weiter an Frontier-Modelle gehen. ${a.fteB} VZÄ für Routing und Evals.`,
     `<b>${g1}</b> reservierte B200 (<b>${g3}</b> in Jahr 3) zu <b>${usd(a.gpuHour)}/GPU-h</b>. Keine Investition. ${a.fteC} VZÄ Inferenz-Team, Monitoring, Frontier-Fallback.`,
     `<b>${g1/8}</b> DGX B200 zu je <b>${usdK(a.dgxPrice)}</b> plus ${usdK(a.network)} Netzwerk in t0, Erweiterung auf ${g3/8} Knoten in Jahr 3. Strom, Colocation, NVIDIA-Support, ${a.fteD} VZÄ. Restwert ${pct(a.salvage)}.`]:[
-    `Metered tokens at a blended <b>${usd(a.pFrontier)}/M</b> (Opus-class list price $4 in / $20 out, about 90% cache reads). Prices fall ${pct(a.priceDecline)} a year. ${a.fteA} FTE for the gateway and FinOps.`,
+    `Metered tokens at a blended <b>${usd(a.pFrontier)}/M</b> (Opus-class list price $4 in / $20 out, about 90% cache reads). Prices fall ${pct(a.priceDecline)} a year. ${a.fteA} FTE (full-time equivalents) for the gateway and FinOps.`,
     `GLM on an enterprise provider (EU region, zero retention) at a blended <b>${usd(a.pOpen)}/M</b>, with ${pct(a.fallbackShare)} of traffic still routed to frontier models. ${a.fteB} FTE for routing and evals.`,
     `<b>${g1}</b> reserved B200s (<b>${g3}</b> in year 3) at <b>${usd(a.gpuHour)}/GPU-h</b>. No capex. ${a.fteC} FTE inference team, observability, frontier fallback.`,
     `<b>${g1/8}</b> DGX B200 at <b>${usdK(a.dgxPrice)}</b> each plus ${usdK(a.network)} networking at t0, expanded to ${g3/8} nodes in year 3. Power, colocation, NVIDIA support, ${a.fteD} FTE. Salvage value ${pct(a.salvage)}.`];
