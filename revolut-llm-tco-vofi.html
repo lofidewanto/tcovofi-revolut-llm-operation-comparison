@@ -302,6 +302,7 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
 .lang-btn:hover{border-color:var(--accent)}
 .lang-btn .off{color:var(--faint);font-weight:500}
 @media (max-width:640px){.lang-btn{padding:0 10px;min-width:40px}}
+.h-cite{font-weight:500;color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 </style>
 
 <div class="rail">
@@ -466,7 +467,7 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
 <!-- STEP 3 -->
 <section id="step3">
   <div class="wrap">
-    <div class="sec-head" data-i="s3Head"><span class="step">Step 3</span><h2>TCO analysis (Table 5 format)</h2>
+    <div class="sec-head" data-i="s3Head"><span class="step">Step 3</span><h2>TCO analysis (Table 5 format, <a href="#sources" class="h-cite" title="Table 5 “TCO Analysis” in: Bensberg, F.; Dewanto, B. L.: TCO VOFI for eLearning Platforms, University of Münster, 2003">Bensberg &amp; Dewanto, 2003</a>)</h2>
       <p class="prose muted">This is the paper's profit-and-loss bridge, side by side for all four alternatives. The final line is the TCO VOFI. The last two rows put it next to a naive Gartner-style sum of payments and convert it into an after-tax cost per million tokens.</p></div>
     <div class="tbl-wrap"><table id="t5"></table></div>
     <div class="chart" id="nomChart"></div>
@@ -528,7 +529,7 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
   <div class="wrap">
     <div class="sec-head" data-i="srcHead"><span class="eyebrow">References</span><h2>Sources</h2></div>
     <ol data-i="src">
-      <li>Bensberg, F.; Dewanto, B. L.: <a href="https://researchgate.net/profile/Frank-Bensberg/publication/228999697_TCO_VO-FI_for_eLearning_Platforms" target="_blank" rel="noopener">TCO VOFI for eLearning Platforms</a>, University of Münster. Method and validation example.</li>
+      <li>Bensberg, F.; Dewanto, B. L.: <a href="https://researchgate.net/profile/Frank-Bensberg/publication/228999697_TCO_VO-FI_for_eLearning_Platforms" target="_blank" rel="noopener">TCO VOFI for eLearning Platforms</a>, University of Münster, 2003. Method and validation example.</li>
       <li>Grob, H. L.: Capital budgeting with financial plans, Wiesbaden 1993; Grob, H. L.; Lahme, N.: Total Cost of Ownership-Analyse mit VOFI, Münster 2000.</li>
       <li><a href="https://x.com/Bassmaster187/status/2117585714296574088" target="_blank" rel="noopener">X post shared by the user</a> (behind a login wall, not readable for this report).</li>
       <li><a href="https://pasqualepillitteri.it/en/news/30052/revolut-glm-self-hosted-ai-coding-costs-claude" target="_blank" rel="noopener">Revolut reveals how it cut AI coding costs 10x with self-hosted GLM</a>, summarising The Register (3 Nov 2026) and StartupHub.</li>
@@ -615,7 +616,7 @@ s1Head:`<span class="step">Schritt 1</span><h2>Ausgangsdaten: vier Alternativen,
 s1Cap:`Die Werte in der Tabelle folgen dem Annahmen-Labor, jede Änderung eines Reglers aktualisiert alle Zahlen dieser Seite. Zahlen, die nicht von Revolut stammen, sind Schätzungen auf Basis öffentlicher Preislisten (GPU-Miete, DGX-Preise, API-Listenpreise) und Londoner Gehaltsniveaus.`,
 s2Head:`<span class="step">Schritt 2</span><h2>VOFI für jede Alternative</h2>
       <p class="prose muted">Jeder Plan folgt dem Aufbau der Tabellen 1–4 im Paper: Zahlungsreihe, Finanzierung über Eigenmittel und Kontokorrent, dann Steuern (Erstattungen bei negativer Bemessungsgrundlage) und Bestände. Werte in <b>Tausend $</b>, t = 0 ist der Investitionszeitpunkt.</p>`,
-s3Head:`<span class="step">Schritt 3</span><h2>TCO-Analyse (Format Tabelle 5)</h2>
+s3Head:`<span class="step">Schritt 3</span><h2>TCO-Analyse (Format Tabelle 5 aus <a href="#sources" class="h-cite" title="Tabelle 5 „TCO Analysis“ in: Bensberg, F.; Dewanto, B. L.: TCO VOFI for eLearning Platforms, Universität Münster, 2003">Bensberg &amp; Dewanto, 2003</a>)</h2>
       <p class="prose muted">Die Gewinnüberleitung des Papers, nebeneinander für alle vier Alternativen. Die letzte Zeile ist der TCO VOFI. Die beiden Zeilen darunter stellen ihn einer naiven Zahlungssumme im Gartner-Stil gegenüber und rechnen ihn in Kosten pro Million Token nach Steuern um.</p>`,
 oppHead:`<span class="eyebrow">Jenseits des Cashflows</span><h2>Opportunitätskosten, explizit und versteckt</h2>
       <p class="prose muted">VOFI bepreist bereits die <b>expliziten</b> Opportunitätskosten: Kapital, das in GPUs gebunden ist, statt Zinsen zu bringen, und die Steuer auf die entgangenen Zinsen. Die <b>versteckten</b> Opportunitätskosten unten tauchen auf keiner Rechnung auf. Sie werden in $ pro Jahr umgerechnet und durch denselben VOFI-Rechenkern geführt, was den erweiterten TCO VOFI ergibt. Betrachte sie als begründete Schätzungen und teste eigene Werte im Labor.</p>`,
@@ -634,7 +635,7 @@ rec:`<div class="card"><h3>1 · Gleiches mit Gleichem vergleichen</h3><p>Selbst 
       <div class="card"><h3>5 · Produktivität als dominante Größe behandeln</h3><p>Revoluts KI-Werkzeuge kosten einige Millionen Dollar im Jahr, die Gehaltssumme der Entwicklung liegt bei etwa 400 Mio. $. Eine Qualitätslücke von 1–2 % wiegt jede Infrastruktur-Ersparnis auf, daher Akzeptanz- und Nacharbeitsquoten je Modell messen.</p></div>
       <div class="card"><h3>6 · Die Option zum Wechsel erhalten</h3><p>Gemietete oder reservierte GPUs mit kurzen Laufzeiten und einen modellunabhängigen Router bevorzugen. So bleibt die Verhandlungsmacht des Self-Hostings erhalten, ohne Kapital in einer GPU-Generation zu binden.</p></div>`,
 srcHead:`<span class="eyebrow">Literatur</span><h2>Quellen</h2>`,
-src:`<li>Bensberg, F.; Dewanto, B. L.: <a href="https://researchgate.net/profile/Frank-Bensberg/publication/228999697_TCO_VO-FI_for_eLearning_Platforms" target="_blank" rel="noopener">TCO VOFI for eLearning Platforms</a>, Universität Münster. Methode und Validierungsbeispiel.</li>
+src:`<li>Bensberg, F.; Dewanto, B. L.: <a href="https://researchgate.net/profile/Frank-Bensberg/publication/228999697_TCO_VO-FI_for_eLearning_Platforms" target="_blank" rel="noopener">TCO VOFI for eLearning Platforms</a>, Universität Münster, 2003. Methode und Validierungsbeispiel.</li>
       <li>Grob, H. L.: Capital budgeting with financial plans, Wiesbaden 1993; Grob, H. L.; Lahme, N.: Total Cost of Ownership-Analyse mit VOFI, Münster 2000.</li>
       <li><a href="https://x.com/Bassmaster187/status/2117585714296574088" target="_blank" rel="noopener">Vom Nutzer geteilter X-Post</a> (hinter Login-Sperre, für diesen Bericht nicht lesbar).</li>
       <li><a href="https://pasqualepillitteri.it/en/news/30052/revolut-glm-self-hosted-ai-coding-costs-claude" target="_blank" rel="noopener">Revolut reveals how it cut AI coding costs 10x with self-hosted GLM</a>, Zusammenfassung von The Register (3. Nov. 2026) und StartupHub.</li>
