@@ -25,6 +25,19 @@ The report is interactive:
 - **Validation:** the same JavaScript engine reproduces all four published values from the eLearning example in the paper.
 - **Bilingual:** English and German.
 
+## Language (EN / DE)
+
+The language can be set from outside via the URL:
+
+| Link | Result |
+|---|---|
+| [`?lang=de`](https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/?lang=de) | German |
+| [`?lang=en`](https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/?lang=en) | English |
+| [`?lang=de#step2`](https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/?lang=de#step2) | German, jumps to a section |
+| `#de` / `#en` | Short form (without section anchor) |
+
+Without a parameter, the page uses the last choice made with the EN/DE button, then the browser language. A URL parameter does not overwrite the saved choice.
+
 ## Files
 
 | File | Description |

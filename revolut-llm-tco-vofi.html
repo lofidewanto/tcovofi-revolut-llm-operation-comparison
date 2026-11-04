@@ -1243,11 +1243,14 @@ let lastW=innerWidth,rz=0;
 addEventListener('resize',()=>{if(innerWidth===lastW)return;lastW=innerWidth;clearTimeout(rz);rz=setTimeout(()=>{hideTip();renderTCOChart();renderNomChart();renderBE();renderTornado();renderObs()},150)});
 
 (function init(){
+  // Language from outside: ?lang=de|en (works with section anchors, e.g. ?lang=de#step2), or #de / #en
   let l=null;
+  try{const q=(new URLSearchParams(location.search).get('lang')||'').toLowerCase().slice(0,2);if(q==='de'||q==='en')l=q}catch(e){}
   const h=(location.hash||'').toLowerCase();
-  if(h==='#de'||h==='#en')l=h.slice(1);
+  if(!l&&(h==='#de'||h==='#en'))l=h.slice(1);
   if(!l){try{const s=localStorage.getItem('tco-vofi-lang');if(s==='de'||s==='en')l=s}catch(e){}}
   if(!l)l=((navigator.language||'en').toLowerCase().startsWith('de'))?'de':'en';
   setLang(l,false);
+  addEventListener('hashchange',()=>{const x=(location.hash||'').toLowerCase();if((x==='#de'||x==='#en')&&x.slice(1)!==lang)setLang(x.slice(1),false)});
 })();
 </script>
