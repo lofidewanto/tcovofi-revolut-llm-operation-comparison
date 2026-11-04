@@ -735,7 +735,7 @@ function build(a,withHidden){
         add(x,hp+L('talent diverted from product','vom Produkt abgezogene Talente'),t,H.talent[i],'opex',true);
         add(x,hp+L('technology obsolescence (GPU generations)','technologische Veralterung (GPU-Generationen)'),t,H.obs[i],'opex',true);
         add(x,hp+L('model churn & re-validation','Modellwechsel & Neuvalidierung'),t,H.churn[i],'opex',true);
-        add(x,hp+L('outage / concentration risk','Ausfall- / Klumpenrisiko'),t,H.outage[i],'opex',true);
+        add(x,hp+L('outage / concentration risk','Ausfall- / Clusterrisiko'),t,H.outage[i],'opex',true);
         add(x,hp+L('off-peak capacity reuse (credit)','Nutzung freier Nachtkapazität (Gutschrift)'),t,H.reuse[i],'opex',true);
       });
     }
@@ -981,7 +981,7 @@ function renderOpp(){
     [hd,'Qualitätslücke & Nacharbeit',`Die Gehaltssumme der Entwicklung liegt bei etwa ${fM(a.engineers*a.salary)} pro Jahr. Jedes 0,1 % Produktivität, das durch schwächere Modellausgaben verloren geht, kostet ${fM(a.engineers*a.salary*0.001)} pro Jahr.`,'bad'],
     [hd,'Abgezogene Talente',`${a.fteD} Inferenz- und RZ-Engineers bauen kein Bankprodukt. Der Wert dieser entgangenen Produktarbeit wird mit einem Aufschlag von ${fM(a.talentPrem)} pro VZÄ über dem Gehalt angesetzt.`,'bad'],
     [hd,'Modellwechsel & Lock-in','Alle paar Monate erscheint ein neues offenes Modell, und jeder Wechsel bedeutet neu quantisieren, neu validieren, neu tunen und prüfen, ob es noch in den B200-Speicher passt. Die API fängt das meiste davon ab.','bad'],
-    [hd,'Klumpen- & Ausfallrisiko','Ein einziger Cluster bedient 2.000 Entwickler, ein Ausfall stoppt also die KI-gestützte Arbeit aller. APIs können auf andere Anbieter ausweichen.','bad'],
+    [hd,'Cluster- & Ausfallrisiko','Ein einziger Cluster bedient 2.000 Entwickler, ein Ausfall stoppt also die KI-gestützte Arbeit aller. APIs können auf andere Anbieter ausweichen.','bad'],
     [hp,'Nutzung freier Nachtkapazität','Freie Nachtkapazität kann Batch-Evals, Betrugsmodelle oder Datenannotation rechnen. Das ist als Gutschrift für C und D angesetzt.','good'],
     [hp,'Souveränität & Verhandlungsmacht','Daten bleiben in der Region, und Self-Hosting stärkt die Verhandlungsposition gegenüber API-Anbietern. Dieser strategische Wert ist schwer zu bepreisen, fließt daher nicht in die Zahlen ein, sollte aber abgewogen werden.','good']]:[
     [hd,'Technology obsolescence (GPU generations)',`NVIDIA now ships a new GPU generation every year, and each one cuts the cost per token sharply. Buying B200s freezes you at 2025 technology for three years while market and API prices keep falling. At a ${pct(A.obsol)} yearly price-performance gain, this costs owned DGX (D) ${fM(ob.D)} and rented GPUs (C, renewable yearly) ${fM(ob.C)} of TCO VOFI over 3 years. For A and B the provider carries this risk. On top comes the lower salvage value, which is already in the cash VOFI.</p><div class="gen"><span class="g">Hopper H100 · 2022</span><span class="ar">→</span><span class="g own">Blackwell B200 · 2024/25</span><span class="ar">→</span><span class="g">Blackwell Ultra · 2025</span><span class="ar">→</span><span class="g">Rubin · 2026</span><span class="ar">→</span><span class="g">Rubin Ultra · 2027</span></div><p>`,'bad','span'],
