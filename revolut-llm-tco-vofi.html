@@ -1,0 +1,1253 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Local LLM TCO VOFI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="TCO VOFI analysis of Revolut's move from metered LLM APIs to self-hosted open-weight models.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a controller's workbook. Narrow reading column for prose, full-width "ledger" sheets for VOFI tables, sticky section rail on top. */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --sunk:#eef0f4; --ink:#141925; --muted:#586174; --faint:#8a92a3; --line:#dde1e8;
+  --accent:#4338ca; --accent-soft:#e8e7fb; --good:#17834a; --good-soft:#e3f4ea; --bad:#b93a24; --bad-soft:#fbe9e5; --warn:#a86a00; --warn-soft:#fbf0d9;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0d1017; --surface:#151922; --sunk:#1b202b; --ink:#e8ebf1; --muted:#a2aabb; --faint:#788196; --line:#2a3040;
+  --accent:#a9a3ff; --accent-soft:#25234a; --good:#4cc883; --good-soft:#15301f; --bad:#f08a74; --bad-soft:#3a1d17; --warn:#e2a93b; --warn-soft:#33270f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0d1017; --surface:#151922; --sunk:#1b202b; --ink:#e8ebf1; --muted:#a2aabb; --faint:#788196; --line:#2a3040;
+  --accent:#a9a3ff; --accent-soft:#25234a; --good:#4cc883; --good-soft:#15301f; --bad:#f08a74; --bad-soft:#3a1d17; --warn:#e2a93b; --warn-soft:#33270f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; color-scheme:dark }
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font:15.5px/1.6 var(--f-body);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.prose{max-width:68ch}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;letter-spacing:-.01em;margin:0}
+h1{font-size:clamp(2rem,5.2vw,3.4rem);line-height:1.04;font-weight:800}
+h2{font-size:clamp(1.5rem,3.2vw,2.05rem);line-height:1.15;font-weight:700}
+h3{font-size:1.15rem;font-weight:700;line-height:1.3}
+p{margin:0}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.eyebrow{font:500 .74rem/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.num,.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+
+/* top rail */
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.rail .wrap{display:flex;gap:16px;align-items:center;height:52px}
+.brand{font:700 .95rem var(--f-display);white-space:nowrap}
+.brand b{color:var(--accent)}
+.rail nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1}
+.rail nav::-webkit-scrollbar{display:none}
+.rail nav a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:.84rem;padding:6px 10px;border-radius:999px}
+.rail nav a:hover{background:var(--sunk);color:var(--ink)}
+
+/* hero */
+header.hero{padding-block:56px 36px}
+.hero .wrap{display:grid;gap:22px}
+.hero .lede{font-size:1.12rem;color:var(--muted);max-width:62ch}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;font:500 .78rem/1 var(--f-mono);padding:6px 10px;border-radius:999px;background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+.chip.good{background:var(--good-soft);color:var(--good);border-color:transparent}
+.chip.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+
+section{padding-block:44px;border-top:1px solid var(--line)}
+section > .wrap{display:grid;gap:22px}
+.sec-head{display:grid;gap:8px}
+.step{font:500 .74rem/1 var(--f-mono);color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
+
+/* KPI tiles */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.kpis{grid-template-columns:1fr}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:6px;align-content:start;position:relative;overflow:hidden}
+.kpi .sw{position:absolute;inset:0 auto 0 0;width:4px}
+.kpi .lbl{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:.86rem;color:var(--muted)}
+.kpi .big{font:600 1.75rem/1.1 var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi .sub{font-size:.8rem;color:var(--muted);display:grid;gap:2px}
+.kpi .sub span b{color:var(--ink);font-family:var(--f-mono);font-weight:500}
+.kpi.win{border-color:var(--good)}
+
+/* verdict */
+.verdict{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;display:grid;gap:14px}
+.verdict h3{font-size:1.3rem}
+.findings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px;margin:0;padding:0;list-style:none}
+@media (max-width:760px){.findings{grid-template-columns:1fr}}
+.findings li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
+.findings li .n{font:600 .8rem/26px var(--f-mono);width:26px;height:26px;text-align:center;border-radius:50%;background:var(--accent-soft);color:var(--accent)}
+
+/* generic cards / grids */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:860px){.grid3{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:8px;align-content:start;min-width:0}
+.card h3{font-size:1.02rem}
+.card p{font-size:.92rem;color:var(--muted)}
+.card .tag{justify-self:start}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:8px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:190px}
+thead th{font:500 .72rem/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--sunk);position:sticky;top:0}
+td{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+td:first-child{font-family:var(--f-body)}
+tr.grp td{background:var(--sunk);font:600 .78rem var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+tr.tot td{font-weight:600;border-top:1.5px solid var(--ink)}
+tr.key td{background:var(--accent-soft);font-weight:600}
+tr:last-child td{border-bottom:0}
+td.neg{color:var(--bad)}
+td.pos{color:var(--good)}
+td .note{display:block;font:400 .76rem var(--f-body);color:var(--muted);white-space:normal}
+.tbl-cap{font-size:.8rem;color:var(--muted)}
+table.facts td{white-space:normal;text-align:left;font-family:var(--f-body)}
+table.facts td:first-child{min-width:150px;font-weight:600}
+table.facts td.mono{font-family:var(--f-mono)}
+
+/* tabs */
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:500 .86rem var(--f-body);padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+
+/* method diagram */
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch}
+.flow .box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:6px;align-content:start}
+.flow .box b{font-family:var(--f-display);font-size:1.02rem}
+.flow .box p{font-size:.88rem;color:var(--muted)}
+.flow .arr{align-self:center;color:var(--faint);font:600 1.2rem var(--f-mono)}
+@media (max-width:760px){.flow{grid-template-columns:1fr}.flow .arr{transform:rotate(90deg);justify-self:center}}
+
+/* charts */
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px;min-width:0;position:relative}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart svg text{fill:var(--muted);font:11px var(--f-mono)}
+.chart svg text.lab{fill:var(--ink);font:500 12px var(--f-body)}
+.chart svg text.val{fill:var(--ink);font:500 11.5px var(--f-mono)}
+.chart svg .grid line{stroke:var(--line);stroke-width:1}
+.chart svg .axis{stroke:var(--faint);stroke-width:1}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.tip{position:fixed;pointer-events:none;z-index:50;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.8rem;box-shadow:0 8px 24px rgba(0,0,0,.14);min-width:150px}
+.tip .r{display:flex;justify-content:space-between;gap:14px;align-items:center}
+.tip .r span:last-child{font-family:var(--f-mono)}
+
+/* lab */
+.lab{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.lab{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.lab{grid-template-columns:1fr}}
+.lab fieldset{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px 14px;margin:0;display:grid;gap:12px;min-width:0}
+.lab legend{font:600 .78rem var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 4px}
+.ctl{display:grid;gap:4px}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:.84rem}
+.ctl label output{font-family:var(--f-mono);color:var(--accent);font-weight:500}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:500 .86rem var(--f-body);padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer;user-select:none}
+.switch input{width:18px;height:18px;accent-color:var(--accent)}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:12px 16px;border-radius:0 8px 8px 0;font-size:.93rem}
+.callout.warn{border-color:var(--warn);background:var(--warn-soft)}
+.sources ol{margin:0;padding-left:20px;display:grid;gap:6px;font-size:.88rem}
+footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--muted);font-size:.84rem}
+.crit{display:grid;gap:10px;counter-reset:c;margin:0;padding:0;list-style:none}
+.crit li{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 14px}
+.crit li::before{counter-increment:c;content:counter(c,decimal-leading-zero);font:600 .8rem var(--f-mono);color:var(--bad);grid-row:span 2;padding-top:3px}
+.crit li b{font-family:var(--f-display);font-size:1rem}
+.crit li span{color:var(--muted);font-size:.92rem}
+
+/* plain-words box */
+.plain{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:16px}
+.plain-head{display:grid;gap:4px}
+.plain-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.plain-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.plain-grid{grid-template-columns:1fr}.plain{padding:16px}}
+.opt{background:var(--sunk);border-radius:var(--r);padding:14px;display:grid;gap:6px;align-content:start;min-width:0}
+.opt-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.badge{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font:700 .9rem var(--f-display);color:#fff}
+.opt-meta{font:500 .72rem/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right}
+.opt b{font-family:var(--f-display);font-size:1rem}
+.opt p{font-size:.88rem;color:var(--muted)}
+.plain-line{font-size:.95rem;border-top:1px solid var(--line);padding-top:12px}
+
+/* theme switch */
+.theme-btn{flex:none;width:38px;height:38px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;transition:border-color .15s}
+.theme-btn:hover{border-color:var(--accent)}
+.theme-btn svg{width:18px;height:18px}
+.chart svg{touch-action:pan-y}
+
+/* phone */
+@media (max-width:640px){
+  body{font-size:15px;line-height:1.55}
+  header.hero{padding-block:28px 22px}
+  .hero .lede{font-size:1rem}
+  section{padding-block:30px}
+  section > .wrap{gap:16px}
+  .rail .wrap{gap:8px;height:50px}
+  .brand{font-size:.85rem}
+  .rail nav a{padding:6px 8px;font-size:.8rem}
+  .kpi{padding:14px 14px 14px 16px}
+  .kpi .big{font-size:1.5rem}
+  .verdict{padding:16px;gap:12px}
+  .verdict h3{font-size:1.1rem}
+  .card{padding:14px}
+  .chart{padding:12px}
+  .crit li{padding:12px 14px;gap:4px 10px}
+  table{font-size:.8rem}
+  th,td{padding:7px 9px}
+  th:first-child,td:first-child{min-width:138px;max-width:170px;position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:1px 0 0 var(--line)}
+  thead th:first-child{background:var(--sunk);z-index:3}
+  tr.key td:first-child{background:var(--accent-soft)}
+  tr.grp td:first-child{background:var(--sunk);max-width:none}
+  table.facts td:first-child{min-width:110px}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-4px;padding:2px 4px 4px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{white-space:nowrap;padding:8px 12px}
+  .toolbar{gap:8px}
+  .lab fieldset{padding:10px 12px 12px}
+  input[type=range]{height:28px}
+  .callout{padding:10px 12px}
+  .tip{max-width:calc(100vw - 24px)}
+}
+.chart svg text{paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+.tor-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.tor-legend span{display:inline-flex;align-items:center;gap:6px}
+.tor-legend .dash{width:16px;height:0;border-top:2px dashed var(--accent)}
+.tor-dir{display:flex;justify-content:space-between;gap:12px;font:500 .78rem var(--f-mono);color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:6px}
+.card.span{grid-column:1/-1}
+.rule{display:flex;gap:14px;align-items:flex-start;background:var(--good-soft);border:1px solid var(--good);border-radius:12px;padding:14px 16px}
+.rule .ic{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--good);color:var(--surface);font:700 1.1rem var(--f-display)}
+.rule p{font-size:.95rem;color:var(--ink)}
+.rule p b:first-child{font-family:var(--f-display);font-size:1.05rem}
+.rule.big p b:first-child{font-size:1.2rem}
+.method-ex{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.method-ex{grid-template-columns:1fr}}
+.calc{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.calc li{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--line);font-size:.92rem}
+.calc li>span:first-child{min-width:0}
+.calc li>span:last-child{font:600 1rem var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.calc li.res{border-bottom:0;border-top:2px solid var(--ink);padding-top:10px}
+.calc li.res>span:first-child{font-weight:600}
+.calc li.res>span:last-child{font-size:1.15rem;color:var(--accent)}
+.calc .sub{display:block;font:400 .8rem/1.4 var(--f-body);color:var(--muted)}
+.why{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.why li{display:grid;grid-template-columns:auto 1fr;gap:10px;font-size:.92rem;color:var(--muted)}
+.why li b{color:var(--ink)}
+.why .k{font:600 .72rem/1 var(--f-mono);padding:5px 7px;border-radius:6px;background:var(--accent-soft);color:var(--accent);height:max-content;letter-spacing:.04em}
+.sens-q{font:600 1.02rem/1.45 var(--f-body);max-width:68ch}
+.sens-key{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.sens-key{grid-template-columns:1fr}}
+.sk{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:8px;align-content:start;min-width:0}
+.sk .sk-n{font:500 .72rem/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.sk h3{font-size:1.05rem}
+.sk p{font-size:.92rem;color:var(--muted)}
+.sk p b{color:var(--ink)}
+.sk .big2{font:600 1.45rem/1.15 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.sk ul{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:.9rem}
+.sk ul li{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:baseline;border-bottom:1px dashed var(--line);padding-bottom:5px}
+.sk ul li:last-child{border-bottom:0}
+.sk ul li span:last-child{font-family:var(--f-mono);font-size:.84rem;color:var(--ink)}
+.howto{font-size:.88rem;color:var(--muted);background:var(--sunk);border-radius:8px;padding:8px 12px}
+.howto b{color:var(--ink)}
+.be{display:grid;gap:10px}
+.be-head{font:700 1.05rem/1.35 var(--f-display)}
+.be-steps{margin:0;padding:0;list-style:none;display:grid;gap:8px;counter-reset:b}
+.be-steps li{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start}
+.be-steps li::before{counter-increment:b;content:counter(b);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:600 .78rem var(--f-mono);background:var(--surface);color:var(--warn);border:1px solid var(--warn)}
+.be-calc{font-family:var(--f-mono);font-size:.86rem;background:var(--surface);border-radius:6px;padding:2px 6px;white-space:nowrap}
+.be-scale{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.be-scale div{background:var(--surface);border-radius:8px;padding:10px 12px;font-size:.88rem}
+.be-scale b{display:block;font-family:var(--f-display);font-size:.95rem;margin-bottom:2px}
+@media (max-width:560px){.be-scale{grid-template-columns:1fr}.be-calc{white-space:normal}}
+.gen{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.gen .g{font:500 .76rem/1 var(--f-mono);padding:6px 9px;border-radius:6px;background:var(--sunk);color:var(--ink);border:1px solid var(--line)}
+.gen .g.own{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.gen .ar{color:var(--faint);font:600 .8rem var(--f-mono)}
+/* language switch */
+.lang-btn{flex:none;height:38px;min-width:46px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 .8rem var(--f-mono);letter-spacing:.06em;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.lang-btn:hover{border-color:var(--accent)}
+.lang-btn .off{color:var(--faint);font-weight:500}
+@media (max-width:640px){.lang-btn{padding:0 10px;min-width:40px}}
+</style>
+
+<div class="rail">
+  <div class="wrap">
+    <div class="brand">TCO <b>VOFI</b></div>
+    <nav aria-label="Sections" data-i="nav">
+      <a href="#summary">Summary</a><a href="#case">The case</a><a href="#critique">Critique</a><a href="#method">Method</a>
+      <a href="#step1">1 · Data</a><a href="#step2">2 · VOFI</a><a href="#step3">3 · TCO</a><a href="#opportunity">Opportunity costs</a>
+      <a href="#sensitivity">Sensitivity</a><a href="#lab">Assumption lab</a><a href="#recommend">Recommendations</a><a href="#sources">Sources</a>
+    </nav>
+    <button class="lang-btn" id="langBtn" type="button" aria-label="Deutsch / English"><span id="langOn">EN</span><span class="off" id="langOff">DE</span></button>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme"></button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap" data-i="hero">
+    <span class="eyebrow">Case study · Capital budgeting for AI infrastructure · Nov 2026</span>
+    <h1>Is a local LLM really 10× cheaper? A TCO VOFI review of Revolut's GLM move</h1>
+    <p class="lede">Revolut says moving 2,000 engineers from metered frontier APIs to self-hosted GLM on 56 Nvidia B200s cut its AI coding bill by about 90%. This report rebuilds that decision with the TCO VOFI method (Visualization of Financial Implications). It covers four real alternatives, three years, taxes, financing, salvage value, and the opportunity costs the headline leaves out.</p>
+    <div class="meta">
+      <span class="chip">Horizon: 3 years</span><span class="chip">Currency: USD</span><span class="chip">UK corp. tax 25%</span><span class="chip">Method: Grob · Bensberg &amp; Dewanto</span><span class="chip warn">Inputs partly estimated</span>
+    </div>
+  </div>
+</header>
+
+<!-- SUMMARY -->
+<section id="summary">
+  <div class="wrap">
+    <div class="sec-head" data-i="sumHead"><span class="eyebrow">Result</span><h2>Summary</h2></div>
+    <div class="plain" data-i="plain">
+      <div class="plain-head"><h3>The four options in plain words</h3><p class="small muted">Four ways to give 2,000 engineers an AI coding assistant, explained as ways to get around town.</p></div>
+      <div class="plain-grid">
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s1)">A</span><span class="opt-meta">Taxi</span></div><b>Frontier API</b><p>Pay Anthropic or OpenAI for every word the AI reads or writes. The best models and nothing to run, but the highest price per word.</p></div>
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s2)">B</span><span class="opt-meta">Cheaper taxi company</span></div><b>Managed open-weight API</b><p>The same free open model Revolut chose (GLM), run by another company that charges per word. Much cheaper than A, and still nothing to run yourself.</p></div>
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s3)">C</span><span class="opt-meta">Leased car</span></div><b>Self-hosted on rented GPUs</b><p>Rent AI chips (Nvidia B200) from a cloud provider and run GLM yourself. No big upfront purchase, but you need your own team to run and tune it.</p></div>
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s4)">D</span><span class="opt-meta">Buying the car</span></div><b>Self-hosted on owned GPUs</b><p>Buy the AI servers (about $4M upfront) and run everything yourself, including power, data-centre space and staff. This appears to be what Revolut did.</p></div>
+      </div>
+      <p class="plain-line"><b>In one line:</b> the big saving comes from moving from A's top-tier model to a cheaper open model (B, C or D). Whether you then rent it, lease chips or buy chips makes only a small difference.</p>
+    </div>
+    <div class="toolbar">
+      <label class="switch"><input type="checkbox" id="hiddenToggle" checked> <span data-i="hidTgl">Include hidden opportunity costs (extended TCO VOFI)</span></label>
+      <span class="small muted" data-i="hidTglNote">Applies to tiles, charts and Step 3. The cash-only TCO VOFI follows the paper strictly.</span>
+    </div>
+    <div class="rule" data-i="ruleSum"><span class="ic" aria-hidden="true">↓</span><p><b>Lower TCO VOFI is better.</b> Each number is the wealth an option costs after 3 years, compared with simply investing the money. The option with the smallest number is the cheapest and has a green border.</p></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="verdict">
+      <span class="eyebrow" data-i="verdictEb">Verdict</span>
+      <h3 id="verdictHead"></h3>
+      <ul class="findings" id="findings"></ul>
+    </div>
+    <div class="chart" id="tcoChart"></div>
+  </div>
+</section>
+
+<!-- CASE -->
+<section id="case">
+  <div class="wrap">
+    <div class="sec-head" data-i="caseHead"><span class="eyebrow">Context</span><h2>What Revolut reported</h2>
+      <p class="prose muted">David Abitbol, who runs operations and infrastructure at Revolut, presented the figures at the AI Engineer conference in New York. The Register and StartupHub covered the talk on 3 November 2026, and the X thread you shared links to that coverage. The X post itself sits behind a login wall, so the figures below come from the press reports listed under Sources.</p></div>
+    <div class="tbl-wrap">
+      <table class="facts" data-i="facts">
+        <thead><tr><th>Item</th><th style="text-align:left">Reported</th><th style="text-align:left">Comment</th></tr></thead>
+        <tbody>
+          <tr><td>Users</td><td class="mono">≈ 2,000 engineers</td><td>AI coding agents in daily use</td></tr>
+          <tr><td>Hardware</td><td class="mono">56 × Nvidia B200 (7 DGX-class nodes)</td><td>Whether the GPUs are owned or rented is <b>not disclosed</b></td></tr>
+          <tr><td>Model</td><td class="mono">Z.ai GLM (5.1 → 5.3; one outlet says 4.5)</td><td>Open weights, about 754B parameters (40B active), NVFP4 on Blackwell</td></tr>
+          <tr><td>Cost claim</td><td class="mono">≈ $0.30 per 1M tokens · "one tenth" of the earlier bill</td><td>Token volume, hardware price and staff cost are <b>not disclosed</b></td></tr>
+          <tr><td>Previous spend</td><td class="mono">"$1,000 or $10,000 a month" per heavy user</td><td>Usage was capped, so the old bill does not reflect the same volume</td></tr>
+          <tr><td>Latency</td><td class="mono">TTFT 10–14 s → 1.6–1.7 s</td><td>Took months of tuning (quantization, parallelism, context limits)</td></tr>
+          <tr><td>Throughput</td><td class="mono">≈ 200 tok/s by day, ≈ 800 tok/s after 5 pm</td><td>Points to daytime saturation and idle capacity at night</td></tr>
+          <tr><td>Productivity</td><td class="mono">−60% coding time · −70% lead time</td><td>Coincided with lifting spending caps, so the effect is confounded</td></tr>
+          <tr><td>Exceptions</td><td class="mono">Claude Code / Codex, Gemini for images</td><td>Frontier fallback is still needed, so it is still a cost line</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- CRITIQUE -->
+<section id="critique">
+  <div class="wrap">
+    <div class="sec-head" data-i="critHead"><span class="eyebrow">Why the headline comparison is weak</span><h2>Eight problems with "10× cheaper"</h2>
+      <p class="prose muted">The article compares one price per token with another. Gartner's TCO already went further than that, and your paper's critique of Gartner's TCO applies here even more strongly.</p></div>
+    <ol class="crit" data-i="crit">
+      <li><b>Different models are being compared</b><span>It sets a frontier closed model (Claude/Codex) against an open-weight model (GLM). Self-hosting should be measured against the <i>same open weights on a managed API</i>, which costs roughly ⅐ of frontier rates.</span></li>
+      <li><b>Marginal cost presented as total cost</b><span>The $0.30/M figure appears to cover running cost only. Hardware, the tuning team, power, colocation, observability and governance are left out.</span></li>
+      <li><b>Cost accounting, not capital budgeting</b><span>It has no time value of money, no capital lock-up, no financing and no tax effects. Your paper calls this the main theoretical weakness of the classic TCO.</span></li>
+      <li><b>No salvage value or obsolescence</b><span>B200s lose value quickly as newer GPUs arrive. Their residual value and depreciation schedule drive the result.</span></li>
+      <li><b>Volumes are not equal</b><span>The old API bill was capped and the new bill is a flat rate. The alternatives have to be compared at the same token volume and growth path.</span></li>
+      <li><b>Productivity is attributed to the wrong cause</b><span>The 60–70% gains arrived when the spending caps were removed. Uncapped API usage could have produced similar gains.</span></li>
+      <li><b>Utilization and latency are ignored</b><span>Throughput of 200 tok/s by day and 800 tok/s at night means the cluster is saturated during work hours and idle afterwards. Both cost money: engineers wait by day, and capital sits unused at night.</span></li>
+      <li><b>Self-reported and unaudited</b><span>The figures come from a single conference talk, the model versions differ between outlets, and no invoices or methodology were published.</span></li>
+    </ol>
+  </div>
+</section>
+
+<!-- METHOD -->
+<section id="method">
+  <div class="wrap">
+    <div class="sec-head" data-i="methHead"><span class="eyebrow">Method</span><h2>TCO VOFI in three steps</h2>
+      <p class="sens-q">The core question: <i>how much poorer is the company after 3 years because of this decision, compared with simply investing the money?</i></p>
+      <p class="prose muted">A classic TCO just adds up the bills. TCO VOFI (Visualization of Financial Implications, in German "Vollständiger Finanzplan") works like a <b>bank statement for each option</b>. It records every payment in the year it happens, adds interest and taxes, and looks at the balance at the end.</p></div>
+    <div class="flow" data-i="flow">
+      <div class="box"><span class="step">Step 1</span><b>Collect all payments</b><p>What do we pay, and when? Purchase, running costs, staff, and the salvage value at the end. Plus the financial data: own funds, interest rates and tax rate.</p></div>
+      <div class="arr" aria-hidden="true">→</div>
+      <div class="box"><span class="step">Step 2</span><b>Write a bank statement for each year</b><p>Every option starts with the same own funds. Each year it pays its bills, earns or pays interest, and gets tax back on its costs. If the money runs out, a loan fills the gap. The result is the balance after year 3.</p></div>
+      <div class="arr" aria-hidden="true">→</div>
+      <div class="box"><span class="step">Step 3</span><b>Compare with doing nothing</b><p>The same own funds, simply invested, would have grown to a known amount. <b>TCO VOFI = that amount − the option's final balance.</b> It is the wealth the decision costs.</p></div>
+    </div>
+    <div class="method-ex" id="methodEx"></div>
+    <div class="grid2">
+      <div class="card">
+        <div data-i="valCard" style="display:grid;gap:8px">
+          <span class="chip good tag">Engine validated</span>
+          <h3>The calculator reproduces the original paper</h3>
+          <p>The same JavaScript engine that computes the Revolut case below was run on the eLearning example from Bensberg &amp; Dewanto. It matches all four published values to the euro.</p>
+        </div>
+        <div class="tbl-wrap"><table id="validation"></table></div>
+      </div>
+      <div class="card">
+        <h3 data-i="formH">Formulas used</h3>
+        <p class="mono small" style="color:var(--ink);line-height:1.8">
+          interest<sub>t</sub> = bal<sub>t−1</sub> × (r<sub>c</sub> if bal ≥ 0, else r<sub>d</sub>)<br>
+          taxbase<sub>t</sub> = in<sub>t</sub> − opex<sub>t</sub> − dep<sub>t</sub> ± interest<sub>t</sub><br>
+          tax<sub>t</sub> = s × taxbase<sub>t</sub> (negative = refund)<br>
+          bal<sub>t</sub> = bal<sub>t−1</sub> ± interest<sub>t</sub> + in<sub>t</sub> − out<sub>t</sub> − tax<sub>t</sub><br>
+          EV<sub>opp</sub> = E × (1 + r<sub>c</sub>(1−s))<sup>T</sup><br>
+          <b>TCO<sub>VOFI</sub> = EV<sub>opp</sub> − bal<sub>T</sub></b>
+        </p>
+        <p data-i="formP">E is the internal funds, set to the $ capex budget of the owned-hardware option so that every alternative starts with the same funds. s is the tax rate. Depreciation uses UK full expensing (100% in year 1) by default, with a linear option in the lab.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STEP 1 -->
+<section id="step1">
+  <div class="wrap">
+    <div class="sec-head" data-i="s1Head"><span class="step">Step 1</span><h2>Main data: four alternatives, one volume</h2>
+      <p class="prose muted">All four alternatives serve the <b>same token volume</b>, which is the fair-comparison condition the article skips. Year-1 volume is derived from the reported figures: $0.30/M on a 56-GPU fleet costing about $2.4M a year implies roughly 8 trillion tokens a year, or about 16M tokens per engineer per working day. That level is plausible for agentic coding with a cache hit rate above 90%.</p></div>
+    <div class="grid2" id="altCards"></div>
+    <div class="tbl-wrap"><table id="assumpTable"></table></div>
+    <p class="tbl-cap" data-i="s1Cap">Values in the table follow the Assumption lab, so changing a slider updates every number on this page. The figures not taken from Revolut are estimates from public price lists (GPU rental, DGX pricing, API list prices) and London salary levels.</p>
+  </div>
+</section>
+
+<!-- STEP 2 -->
+<section id="step2">
+  <div class="wrap">
+    <div class="sec-head" data-i="s2Head"><span class="step">Step 2</span><h2>VOFI for each alternative</h2>
+      <p class="prose muted">Each plan follows the layout of Tables 1–4 in the paper: series of payments, financing through internal funds and the current account, then taxes (refunds when the tax base is negative) and balances. Values are in <b>$ thousands</b>, and t = 0 is the investment date.</p></div>
+    <div class="tabs" role="tablist" id="vofiTabs"></div>
+    <div class="grid2" style="grid-template-columns:minmax(0,1fr)">
+      <div class="tbl-wrap"><table id="payTable"></table></div>
+      <div class="tbl-wrap"><table id="vofiTable"></table></div>
+    </div>
+    <div class="callout" id="oppNote"></div>
+  </div>
+</section>
+
+<!-- STEP 3 -->
+<section id="step3">
+  <div class="wrap">
+    <div class="sec-head" data-i="s3Head"><span class="step">Step 3</span><h2>TCO analysis (Table 5 format)</h2>
+      <p class="prose muted">This is the paper's profit-and-loss bridge, side by side for all four alternatives. The final line is the TCO VOFI. The last two rows put it next to a naive Gartner-style sum of payments and convert it into an after-tax cost per million tokens.</p></div>
+    <div class="tbl-wrap"><table id="t5"></table></div>
+    <div class="chart" id="nomChart"></div>
+  </div>
+</section>
+
+<!-- OPPORTUNITY -->
+<section id="opportunity">
+  <div class="wrap">
+    <div class="sec-head" data-i="oppHead"><span class="eyebrow">Beyond cash</span><h2>Opportunity costs, explicit and hidden</h2>
+      <p class="prose muted">VOFI already prices the <b>explicit</b> opportunity cost: capital tied up in GPUs instead of earning interest, and the tax paid on the interest that is given up. The <b>hidden</b> opportunity costs below never appear on an invoice. They are converted to $ per year and passed through the same VOFI engine, which gives the extended TCO VOFI. Treat them as reasoned estimates and test your own values in the lab.</p></div>
+    <div class="grid3" id="oppCards"></div>
+    <div class="tbl-wrap"><table id="hiddenTable"></table></div>
+    <div class="callout warn" id="breakevenNote"></div>
+  </div>
+</section>
+
+<!-- SENSITIVITY -->
+<section id="sensitivity">
+  <div class="wrap">
+    <div class="sec-head" data-i="senHead"><span class="eyebrow">Robustness</span><h2>Sensitivity: where the decision flips</h2>
+      <p class="sens-q">Every result rests on assumptions. Sensitivity analysis asks one simple question: <i>what would have to change, and by how much, for a different option to win?</i></p>
+      <p class="prose muted">The three cards give the short answer for the current settings. The charts below show the detail, each with a "How to read it" line.</p></div>
+    <div class="sens-key" id="sensKey"></div>
+    <div class="chart" id="beChart"></div>
+    <div class="chart" id="tornado"></div>
+    <div class="chart" id="obsChart"></div>
+  </div>
+</section>
+
+<!-- LAB -->
+<section id="lab">
+  <div class="wrap">
+    <div class="sec-head" data-i="labHead"><span class="eyebrow">Interactive</span><h2>Assumption lab</h2>
+      <p class="prose muted">Change any input and the whole report recalculates, from the VOFI tables to the summary. The defaults are the base case described in Step 1.</p></div>
+    <div class="toolbar"><button class="btn" id="resetBtn" type="button" data-i="reset">Reset to base case</button>
+      <label class="switch"><input type="checkbox" id="linearDep"> <span data-i="linTgl">Linear 3-year depreciation instead of UK full expensing</span></label></div>
+    <div class="lab" id="labGrid"></div>
+  </div>
+</section>
+
+<!-- RECOMMEND -->
+<section id="recommend">
+  <div class="wrap">
+    <div class="sec-head" data-i="recHead"><span class="eyebrow">So what</span><h2>A better way to run this TCO</h2></div>
+    <div class="grid2" data-i="rec">
+      <div class="card"><h3>1 · Compare like with like</h3><p>Measure self-hosted GLM against managed GLM, and frontier against frontier. Treat "open versus frontier" (a question of quality) and "own versus rent versus API" (a question of sourcing) as two separate decisions.</p></div>
+      <div class="card"><h3>2 · Use payments, not costs</h3><p>Build a VOFI with the actual timing of capex, opex, salvage, tax shields (UK full expensing is worth a lot here) and the firm's real creditor and debtor rates.</p></div>
+      <div class="card"><h3>3 · Fix the volume, then vary it</h3><p>Model every option at the same token path, then sweep the volume to find the break-even. Revolut is well above it. Most companies are not.</p></div>
+      <div class="card"><h3>4 · Price utilization in both directions</h3><p>Daytime saturation costs engineer time and nighttime idle costs capital. Add burst capacity (rented GPUs or API overflow) and fill nights with batch work such as evals, fraud models and data labelling.</p></div>
+      <div class="card"><h3>5 · Treat productivity as the dominant variable</h3><p>Revolut's AI tools cost a few million dollars a year, while engineering payroll is about $400M. A quality gap of 1–2% outweighs any infrastructure saving, so measure acceptance and rework rates per model.</p></div>
+      <div class="card"><h3>6 · Keep the option to switch</h3><p>Prefer rented or reserved GPUs with short terms and a model-agnostic router. This keeps the bargaining power that self-hosting gives without locking capital into one GPU generation.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOURCES -->
+<section id="sources" class="sources">
+  <div class="wrap">
+    <div class="sec-head" data-i="srcHead"><span class="eyebrow">References</span><h2>Sources</h2></div>
+    <ol data-i="src">
+      <li>Bensberg, F.; Dewanto, B. L.: <a href="https://researchgate.net/profile/Frank-Bensberg/publication/228999697_TCO_VO-FI_for_eLearning_Platforms" target="_blank" rel="noopener">TCO VOFI for eLearning Platforms</a>, University of Münster. Method and validation example.</li>
+      <li>Grob, H. L.: Capital budgeting with financial plans, Wiesbaden 1993; Grob, H. L.; Lahme, N.: Total Cost of Ownership-Analyse mit VOFI, Münster 2000.</li>
+      <li><a href="https://x.com/Bassmaster187/status/2117585714296574088" target="_blank" rel="noopener">X post shared by the user</a> (behind a login wall, not readable for this report).</li>
+      <li><a href="https://pasqualepillitteri.it/en/news/30052/revolut-glm-self-hosted-ai-coding-costs-claude" target="_blank" rel="noopener">Revolut reveals how it cut AI coding costs 10x with self-hosted GLM</a>, summarising The Register (3 Nov 2026) and StartupHub.</li>
+      <li><a href="https://cellcog.ai/blog/revolut-self-hosted-glm/" target="_blank" rel="noopener">Revolut Self-Hosts GLM: 2,000 Engineers, a Tenth of the Bill</a>, with latency, throughput and list prices.</li>
+      <li><a href="https://www.startuphub.ai/ai-news/artificial-intelligence/2026/revolut-says-self-hosted-ai-cut-coding-costs-90" target="_blank" rel="noopener">StartupHub: Revolut says self-hosted AI cut coding costs 90%</a></li>
+      <li><a href="https://fourweekmba.com/ai-revolut-says-self-hosted-glm-cut-its-ai-coding-costs-90/" target="_blank" rel="noopener">FourWeekMBA</a> · <a href="https://aiweekly.co/alerts/revolut-cuts-ai-coding-costs-90-with-self-hosted-glm-on-56-b200s" target="_blank" rel="noopener">AI Weekly</a> · <a href="https://startupfortune.com/revolut-says-self-hosted-open-ai-models-cut-its-coding-costs-90/" target="_blank" rel="noopener">Startup Fortune</a> · <a href="https://emergent.sh/news/revolut-cuts-ai-coding-costs-90-self-hosted" target="_blank" rel="noopener">Emergent</a> · <a href="https://cryptobriefing.com/revolut-cuts-ai-coding-costs-self-hosted/" target="_blank" rel="noopener">Crypto Briefing</a> · <a href="https://shiftdelete.net/en/revolut-glm" target="_blank" rel="noopener">ShiftDelete</a></li>
+      <li><a href="https://vercel.com/i/self-hosted-llm" target="_blank" rel="noopener">Vercel: Self-hosted LLM economics</a>: utilization, idle cost, model churn, and managed open-weight pricing as the fair benchmark.</li>
+      <li>B200 pricing: <a href="https://www.morphllm.com/nvidia-b200" target="_blank" rel="noopener">MorphLLM</a>, <a href="https://www.spheron.network/blog/nvidia-b200-cloud-pricing-2026/" target="_blank" rel="noopener">Spheron</a>, <a href="https://deploybase.ai/articles/nvidia-dgx-b200-price" target="_blank" rel="noopener">DeployBase</a>. Neocloud rates of $3.75–7/GPU-h; hyperscalers $14–27; about $490–515k per DGX B200.</li>
+      <li>UK tax: <a href="https://www.gov.uk/corporation-tax-rates" target="_blank" rel="noopener">Corporation tax rates (25%)</a>, <a href="https://www.gov.uk/capital-allowances" target="_blank" rel="noopener">Capital allowances / full expensing</a>.</li>
+    </ol>
+  </div>
+</section>
+
+<footer><div class="wrap" data-i="foot">Independent analysis for discussion. It is not affiliated with Revolut. Figures marked as estimates are assumptions, not disclosed company data. All calculations run in your browser.</div></footer>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+/* ================= LANGUAGE ================= */
+let lang='en';
+const L=(en,de)=>lang==='de'?de:en;
+const DE={
+nav:`<a href="#summary">Zusammenfassung</a><a href="#case">Der Fall</a><a href="#critique">Kritik</a><a href="#method">Methode</a>
+      <a href="#step1">1 · Daten</a><a href="#step2">2 · VOFI</a><a href="#step3">3 · TCO</a><a href="#opportunity">Opportunitätskosten</a>
+      <a href="#sensitivity">Sensitivität</a><a href="#lab">Annahmen-Labor</a><a href="#recommend">Empfehlungen</a><a href="#sources">Quellen</a>`,
+hero:`<span class="eyebrow">Fallstudie · Investitionsrechnung für KI-Infrastruktur · Nov. 2026</span>
+    <h1>Ist ein lokales LLM wirklich 10× günstiger? Eine TCO-VOFI-Analyse von Revoluts Wechsel zu GLM</h1>
+    <p class="lede">Laut Revolut hat der Umzug von 2.000 Entwicklern von nutzungsabhängig abgerechneten Frontier-APIs auf selbst gehostetes GLM mit 56 Nvidia-B200-GPUs die Kosten für KI-gestütztes Programmieren um etwa 90 % gesenkt. Dieser Bericht rechnet die Entscheidung mit der TCO-VOFI-Methode (Vollständiger Finanzplan) nach. Er betrachtet vier echte Alternativen über drei Jahre, mit Steuern, Finanzierung, Restwert und den Opportunitätskosten, die in der Schlagzeile fehlen.</p>
+    <div class="meta">
+      <span class="chip">Horizont: 3 Jahre</span><span class="chip">Währung: USD</span><span class="chip">UK-Körperschaftsteuer 25 %</span><span class="chip">Methode: Grob · Bensberg &amp; Dewanto</span><span class="chip warn">Eingaben teils geschätzt</span>
+    </div>`,
+sumHead:`<span class="eyebrow">Ergebnis</span><h2>Zusammenfassung</h2>`,
+plain:`<div class="plain-head"><h3>Die vier Optionen in einfachen Worten</h3><p class="small muted">Vier Wege, 2.000 Entwicklern einen KI-Programmierassistenten bereitzustellen, erklärt wie Wege durch die Stadt.</p></div>
+      <div class="plain-grid">
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s1)">A</span><span class="opt-meta">Taxi</span></div><b>Frontier-API</b><p>Anthropic oder OpenAI für jedes Wort bezahlen, das die KI liest oder schreibt. Die besten Modelle und nichts selbst zu betreiben, aber der höchste Preis pro Wort.</p></div>
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s2)">B</span><span class="opt-meta">Günstigeres Taxiunternehmen</span></div><b>Gemanagte Open-Weight-API</b><p>Dasselbe freie, offene Modell, das Revolut gewählt hat (GLM), betrieben von einem anderen Anbieter, der pro Wort abrechnet. Viel günstiger als A, und man betreibt weiterhin nichts selbst.</p></div>
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s3)">C</span><span class="opt-meta">Leasingauto</span></div><b>Selbst gehostet auf gemieteten GPUs</b><p>KI-Chips (Nvidia B200) bei einem Cloud-Anbieter mieten und GLM selbst betreiben. Keine große Anfangsinvestition, aber ein eigenes Team für Betrieb und Tuning nötig.</p></div>
+        <div class="opt"><div class="opt-top"><span class="badge" style="background:var(--s4)">D</span><span class="opt-meta">Auto kaufen</span></div><b>Selbst gehostet auf eigenen GPUs</b><p>Die KI-Server kaufen (ca. 4 Mio. $ vorab) und alles selbst betreiben, inklusive Strom, Rechenzentrumsfläche und Personal. Das scheint Revoluts Weg zu sein.</p></div>
+      </div>
+      <p class="plain-line"><b>In einem Satz:</b> Die große Ersparnis entsteht durch den Wechsel vom Spitzenmodell in A zu einem günstigeren offenen Modell (B, C oder D). Ob man es dann mietet, Chips least oder Chips kauft, macht nur einen kleinen Unterschied.</p>`,
+ruleSum:`<span class="ic" aria-hidden="true">↓</span><p><b>Niedriger TCO VOFI ist besser.</b> Jede Zahl ist das Vermögen, das eine Option nach 3 Jahren kostet, verglichen mit einer einfachen Geldanlage. Die Option mit der kleinsten Zahl ist die günstigste und grün umrandet.</p>`,
+hidTgl:`Versteckte Opportunitätskosten einbeziehen (erweiterter TCO VOFI)`,
+hidTglNote:`Gilt für Kacheln, Diagramme und Schritt 3. Der reine Cash-TCO-VOFI folgt streng dem Paper.`,
+verdictEb:`Fazit`,
+caseHead:`<span class="eyebrow">Kontext</span><h2>Was Revolut berichtet hat</h2>
+      <p class="prose muted">David Abitbol, verantwortlich für Betrieb und Infrastruktur bei Revolut, stellte die Zahlen auf der AI Engineer Conference in New York vor. The Register und StartupHub berichteten am 3. November 2026 über den Vortrag, und der von dir geteilte X-Thread verweist auf diese Berichte. Der X-Post selbst liegt hinter einer Login-Sperre, daher stammen die Zahlen unten aus den unter Quellen aufgeführten Presseberichten.</p>`,
+facts:`<thead><tr><th>Punkt</th><th style="text-align:left">Berichtet</th><th style="text-align:left">Kommentar</th></tr></thead>
+        <tbody>
+          <tr><td>Nutzer</td><td class="mono">≈ 2.000 Entwickler</td><td>KI-Coding-Agenten im täglichen Einsatz</td></tr>
+          <tr><td>Hardware</td><td class="mono">56 × Nvidia B200 (7 Knoten der DGX-Klasse)</td><td>Ob die GPUs gekauft oder gemietet sind, wurde <b>nicht offengelegt</b></td></tr>
+          <tr><td>Modell</td><td class="mono">Z.ai GLM (5.1 → 5.3; eine Quelle nennt 4.5)</td><td>Offene Gewichte, ca. 754 Mrd. Parameter (40 Mrd. aktiv), NVFP4 auf Blackwell</td></tr>
+          <tr><td>Kostenaussage</td><td class="mono">≈ 0,30 $ pro 1 Mio. Token · „ein Zehntel“ der früheren Rechnung</td><td>Token-Volumen, Hardwarepreis und Personalkosten wurden <b>nicht offengelegt</b></td></tr>
+          <tr><td>Bisherige Ausgaben</td><td class="mono">„1.000 oder 10.000 $ im Monat“ pro Intensivnutzer</td><td>Die Nutzung war gedeckelt, die alte Rechnung bildet also nicht dasselbe Volumen ab</td></tr>
+          <tr><td>Latenz</td><td class="mono">TTFT 10–14 s → 1,6–1,7 s</td><td>Erforderte monatelanges Tuning (Quantisierung, Parallelisierung, Kontextgrenzen)</td></tr>
+          <tr><td>Durchsatz</td><td class="mono">≈ 200 Token/s tagsüber, ≈ 800 Token/s nach 17 Uhr</td><td>Deutet auf Auslastungsspitzen am Tag und Leerlauf in der Nacht hin</td></tr>
+          <tr><td>Produktivität</td><td class="mono">−60 % Codierzeit · −70 % Durchlaufzeit</td><td>Fiel mit der Aufhebung der Ausgabengrenzen zusammen, der Effekt ist also vermischt</td></tr>
+          <tr><td>Ausnahmen</td><td class="mono">Claude Code / Codex, Gemini für Bilder</td><td>Ein Frontier-Fallback bleibt nötig und damit ein Kostenposten</td></tr>
+        </tbody>`,
+critHead:`<span class="eyebrow">Warum der Schlagzeilen-Vergleich schwach ist</span><h2>Acht Probleme mit „10× günstiger“</h2>
+      <p class="prose muted">Der Artikel vergleicht einen Preis pro Token mit einem anderen. Schon Gartners TCO ging weiter als das, und die Kritik deines Papers an Gartners TCO gilt hier umso mehr.</p>`,
+crit:`<li><b>Es werden unterschiedliche Modelle verglichen</b><span>Ein geschlossenes Frontier-Modell (Claude/Codex) wird einem Open-Weight-Modell (GLM) gegenübergestellt. Self-Hosting müsste mit <i>denselben offenen Gewichten auf einer gemanagten API</i> verglichen werden, die etwa ⅐ der Frontier-Preise kostet.</span></li>
+      <li><b>Grenzkosten werden als Gesamtkosten dargestellt</b><span>Die 0,30 $/Mio. scheinen nur die Betriebskosten abzudecken. Hardware, Tuning-Team, Strom, Colocation, Monitoring und Governance fehlen.</span></li>
+      <li><b>Kostenrechnung statt Investitionsrechnung</b><span>Es gibt keinen Zeitwert des Geldes, keine Kapitalbindung, keine Finanzierung und keine Steuereffekte. Dein Paper nennt genau das die zentrale theoretische Schwäche der klassischen TCO.</span></li>
+      <li><b>Kein Restwert, keine Veralterung</b><span>B200-GPUs verlieren schnell an Wert, sobald neuere GPUs erscheinen. Restwert und Abschreibungsplan bestimmen das Ergebnis.</span></li>
+      <li><b>Die Volumina sind nicht gleich</b><span>Die alte API-Rechnung war gedeckelt, die neue ist eine Flatrate. Die Alternativen müssen beim selben Token-Volumen und Wachstumspfad verglichen werden.</span></li>
+      <li><b>Produktivität wird der falschen Ursache zugeschrieben</b><span>Die Gewinne von 60–70 % kamen, als die Ausgabengrenzen fielen. Ungedeckelte API-Nutzung hätte ähnliche Effekte bringen können.</span></li>
+      <li><b>Auslastung und Latenz werden ignoriert</b><span>200 Token/s tagsüber und 800 Token/s nachts bedeuten: Der Cluster ist während der Arbeitszeit ausgelastet und danach im Leerlauf. Beides kostet Geld: Tagsüber warten Entwickler, nachts liegt Kapital brach.</span></li>
+      <li><b>Selbst berichtet und ungeprüft</b><span>Die Zahlen stammen aus einem einzigen Konferenzvortrag, die Modellversionen unterscheiden sich je nach Quelle, und weder Rechnungen noch Methodik wurden veröffentlicht.</span></li>`,
+methHead:`<span class="eyebrow">Methode</span><h2>TCO VOFI in drei Schritten</h2>
+      <p class="sens-q">Die Kernfrage: <i>Um wie viel ärmer ist das Unternehmen nach 3 Jahren durch diese Entscheidung, verglichen damit, das Geld einfach anzulegen?</i></p>
+      <p class="prose muted">Eine klassische TCO addiert nur die Rechnungen. TCO VOFI (Vollständiger Finanzplan) funktioniert wie ein <b>Kontoauszug für jede Option</b>. Jede Zahlung steht in dem Jahr, in dem sie anfällt, dazu kommen Zinsen und Steuern, und am Ende zählt der Kontostand.</p>`,
+flow:`<div class="box"><span class="step">Schritt 1</span><b>Alle Zahlungen sammeln</b><p>Was zahlen wir wann? Kauf, laufende Kosten, Personal und den Restwert am Ende. Dazu die Finanzdaten: Eigenmittel, Zinssätze und Steuersatz.</p></div>
+      <div class="arr" aria-hidden="true">→</div>
+      <div class="box"><span class="step">Schritt 2</span><b>Für jedes Jahr einen Kontoauszug schreiben</b><p>Jede Option startet mit denselben Eigenmitteln. Jedes Jahr zahlt sie ihre Rechnungen, erhält oder zahlt Zinsen und bekommt auf ihre Kosten Steuern zurück. Reicht das Geld nicht, schließt ein Kredit die Lücke. Ergebnis ist der Kontostand nach Jahr 3.</p></div>
+      <div class="arr" aria-hidden="true">→</div>
+      <div class="box"><span class="step">Schritt 3</span><b>Mit dem Nichtstun vergleichen</b><p>Dieselben Eigenmittel, einfach angelegt, wären auf einen bekannten Betrag gewachsen. <b>TCO VOFI = dieser Betrag − Endkontostand der Option.</b> Das ist das Vermögen, das die Entscheidung kostet.</p></div>`,
+valCard:`<span class="chip good tag">Rechenkern validiert</span>
+          <h3>Der Rechner reproduziert das Original-Paper</h3>
+          <p>Derselbe JavaScript-Rechenkern, der unten den Revolut-Fall berechnet, wurde auf das eLearning-Beispiel von Bensberg &amp; Dewanto angewendet. Er trifft alle vier veröffentlichten Werte auf den Euro genau.</p>`,
+formH:`Verwendete Formeln`,
+formP:`E sind die Eigenmittel, gleich dem Investitionsbudget der Option mit eigener Hardware, damit alle Alternativen mit denselben Mitteln starten. s ist der Steuersatz. Abgeschrieben wird standardmäßig nach UK Full Expensing (100 % im ersten Jahr), alternativ linear im Labor.`,
+s1Head:`<span class="step">Schritt 1</span><h2>Ausgangsdaten: vier Alternativen, ein Volumen</h2>
+      <p class="prose muted">Alle vier Alternativen bedienen <b>dasselbe Token-Volumen</b>, die Bedingung für einen fairen Vergleich, die der Artikel auslässt. Das Volumen im ersten Jahr ist aus den berichteten Zahlen abgeleitet: 0,30 $/Mio. bei einer 56-GPU-Flotte mit ca. 2,4 Mio. $ Jahreskosten ergibt rund 8 Billionen Token pro Jahr, also etwa 16 Mio. Token pro Entwickler und Arbeitstag. Das ist für agentisches Programmieren mit über 90 % Cache-Trefferquote plausibel.</p>`,
+s1Cap:`Die Werte in der Tabelle folgen dem Annahmen-Labor, jede Änderung eines Reglers aktualisiert alle Zahlen dieser Seite. Zahlen, die nicht von Revolut stammen, sind Schätzungen auf Basis öffentlicher Preislisten (GPU-Miete, DGX-Preise, API-Listenpreise) und Londoner Gehaltsniveaus.`,
+s2Head:`<span class="step">Schritt 2</span><h2>VOFI für jede Alternative</h2>
+      <p class="prose muted">Jeder Plan folgt dem Aufbau der Tabellen 1–4 im Paper: Zahlungsreihe, Finanzierung über Eigenmittel und Kontokorrent, dann Steuern (Erstattungen bei negativer Bemessungsgrundlage) und Bestände. Werte in <b>Tausend $</b>, t = 0 ist der Investitionszeitpunkt.</p>`,
+s3Head:`<span class="step">Schritt 3</span><h2>TCO-Analyse (Format Tabelle 5)</h2>
+      <p class="prose muted">Die Gewinnüberleitung des Papers, nebeneinander für alle vier Alternativen. Die letzte Zeile ist der TCO VOFI. Die beiden Zeilen darunter stellen ihn einer naiven Zahlungssumme im Gartner-Stil gegenüber und rechnen ihn in Kosten pro Million Token nach Steuern um.</p>`,
+oppHead:`<span class="eyebrow">Jenseits des Cashflows</span><h2>Opportunitätskosten, explizit und versteckt</h2>
+      <p class="prose muted">VOFI bepreist bereits die <b>expliziten</b> Opportunitätskosten: Kapital, das in GPUs gebunden ist, statt Zinsen zu bringen, und die Steuer auf die entgangenen Zinsen. Die <b>versteckten</b> Opportunitätskosten unten tauchen auf keiner Rechnung auf. Sie werden in $ pro Jahr umgerechnet und durch denselben VOFI-Rechenkern geführt, was den erweiterten TCO VOFI ergibt. Betrachte sie als begründete Schätzungen und teste eigene Werte im Labor.</p>`,
+senHead:`<span class="eyebrow">Robustheit</span><h2>Sensitivität: wo die Entscheidung kippt</h2>
+      <p class="sens-q">Jedes Ergebnis beruht auf Annahmen. Die Sensitivitätsanalyse stellt eine einfache Frage: <i>Was müsste sich ändern, und wie stark, damit eine andere Option gewinnt?</i></p>
+      <p class="prose muted">Die drei Karten geben die kurze Antwort für die aktuellen Einstellungen. Die Diagramme darunter zeigen die Details, jeweils mit einer Lesehilfe.</p>`,
+labHead:`<span class="eyebrow">Interaktiv</span><h2>Annahmen-Labor</h2>
+      <p class="prose muted">Ändere eine beliebige Eingabe, und der ganze Bericht rechnet neu, von den VOFI-Tabellen bis zur Zusammenfassung. Voreingestellt ist der in Schritt 1 beschriebene Basisfall.</p>`,
+reset:`Auf Basisfall zurücksetzen`,
+linTgl:`Lineare Abschreibung über 3 Jahre statt UK Full Expensing`,
+recHead:`<span class="eyebrow">Was folgt daraus</span><h2>Wie man diese TCO besser rechnet</h2>`,
+rec:`<div class="card"><h3>1 · Gleiches mit Gleichem vergleichen</h3><p>Selbst gehostetes GLM gegen gemanagtes GLM messen, Frontier gegen Frontier. „Offen gegen Frontier“ (eine Qualitätsfrage) und „Kaufen gegen Mieten gegen API“ (eine Beschaffungsfrage) als zwei getrennte Entscheidungen behandeln.</p></div>
+      <div class="card"><h3>2 · Zahlungen statt Kosten verwenden</h3><p>Einen VOFI mit dem tatsächlichen Timing von Investition, Betriebskosten, Restwert, Steuervorteilen (UK Full Expensing ist hier viel wert) und den echten Haben- und Sollzinsen des Unternehmens aufstellen.</p></div>
+      <div class="card"><h3>3 · Volumen festlegen, dann variieren</h3><p>Jede Option auf demselben Token-Pfad modellieren, dann das Volumen durchvariieren, um den Break-even zu finden. Revolut liegt deutlich darüber, die meisten Unternehmen nicht.</p></div>
+      <div class="card"><h3>4 · Auslastung in beide Richtungen bepreisen</h3><p>Spitzenlast am Tag kostet Entwicklerzeit, Leerlauf in der Nacht kostet Kapital. Burst-Kapazität ergänzen (gemietete GPUs oder API-Überlauf) und die Nächte mit Batch-Arbeit füllen, etwa Evals, Betrugsmodelle und Datenannotation.</p></div>
+      <div class="card"><h3>5 · Produktivität als dominante Größe behandeln</h3><p>Revoluts KI-Werkzeuge kosten einige Millionen Dollar im Jahr, die Gehaltssumme der Entwicklung liegt bei etwa 400 Mio. $. Eine Qualitätslücke von 1–2 % wiegt jede Infrastruktur-Ersparnis auf, daher Akzeptanz- und Nacharbeitsquoten je Modell messen.</p></div>
+      <div class="card"><h3>6 · Die Option zum Wechsel erhalten</h3><p>Gemietete oder reservierte GPUs mit kurzen Laufzeiten und einen modellunabhängigen Router bevorzugen. So bleibt die Verhandlungsmacht des Self-Hostings erhalten, ohne Kapital in einer GPU-Generation zu binden.</p></div>`,
+srcHead:`<span class="eyebrow">Literatur</span><h2>Quellen</h2>`,
+src:`<li>Bensberg, F.; Dewanto, B. L.: <a href="https://researchgate.net/profile/Frank-Bensberg/publication/228999697_TCO_VO-FI_for_eLearning_Platforms" target="_blank" rel="noopener">TCO VOFI for eLearning Platforms</a>, Universität Münster. Methode und Validierungsbeispiel.</li>
+      <li>Grob, H. L.: Capital budgeting with financial plans, Wiesbaden 1993; Grob, H. L.; Lahme, N.: Total Cost of Ownership-Analyse mit VOFI, Münster 2000.</li>
+      <li><a href="https://x.com/Bassmaster187/status/2117585714296574088" target="_blank" rel="noopener">Vom Nutzer geteilter X-Post</a> (hinter Login-Sperre, für diesen Bericht nicht lesbar).</li>
+      <li><a href="https://pasqualepillitteri.it/en/news/30052/revolut-glm-self-hosted-ai-coding-costs-claude" target="_blank" rel="noopener">Revolut reveals how it cut AI coding costs 10x with self-hosted GLM</a>, Zusammenfassung von The Register (3. Nov. 2026) und StartupHub.</li>
+      <li><a href="https://cellcog.ai/blog/revolut-self-hosted-glm/" target="_blank" rel="noopener">Revolut Self-Hosts GLM: 2,000 Engineers, a Tenth of the Bill</a>, mit Latenz, Durchsatz und Listenpreisen.</li>
+      <li><a href="https://www.startuphub.ai/ai-news/artificial-intelligence/2026/revolut-says-self-hosted-ai-cut-coding-costs-90" target="_blank" rel="noopener">StartupHub: Revolut says self-hosted AI cut coding costs 90%</a></li>
+      <li><a href="https://fourweekmba.com/ai-revolut-says-self-hosted-glm-cut-its-ai-coding-costs-90/" target="_blank" rel="noopener">FourWeekMBA</a> · <a href="https://aiweekly.co/alerts/revolut-cuts-ai-coding-costs-90-with-self-hosted-glm-on-56-b200s" target="_blank" rel="noopener">AI Weekly</a> · <a href="https://startupfortune.com/revolut-says-self-hosted-open-ai-models-cut-its-coding-costs-90/" target="_blank" rel="noopener">Startup Fortune</a> · <a href="https://emergent.sh/news/revolut-cuts-ai-coding-costs-90-self-hosted" target="_blank" rel="noopener">Emergent</a> · <a href="https://cryptobriefing.com/revolut-cuts-ai-coding-costs-self-hosted/" target="_blank" rel="noopener">Crypto Briefing</a> · <a href="https://shiftdelete.net/en/revolut-glm" target="_blank" rel="noopener">ShiftDelete</a></li>
+      <li><a href="https://vercel.com/i/self-hosted-llm" target="_blank" rel="noopener">Vercel: Self-hosted LLM economics</a>: Auslastung, Leerlaufkosten, Modellwechsel und gemanagte Open-Weight-Preise als fairer Vergleichsmaßstab.</li>
+      <li>B200-Preise: <a href="https://www.morphllm.com/nvidia-b200" target="_blank" rel="noopener">MorphLLM</a>, <a href="https://www.spheron.network/blog/nvidia-b200-cloud-pricing-2026/" target="_blank" rel="noopener">Spheron</a>, <a href="https://deploybase.ai/articles/nvidia-dgx-b200-price" target="_blank" rel="noopener">DeployBase</a>. Neocloud-Tarife 3,75–7 $/GPU-h; Hyperscaler 14–27 $; ca. 490–515 Tsd. $ pro DGX B200.</li>
+      <li>UK-Steuern: <a href="https://www.gov.uk/corporation-tax-rates" target="_blank" rel="noopener">Körperschaftsteuersätze (25 %)</a>, <a href="https://www.gov.uk/capital-allowances" target="_blank" rel="noopener">Capital Allowances / Full Expensing</a>.</li>`,
+foot:`Unabhängige Analyse zur Diskussion, nicht mit Revolut verbunden. Als Schätzung gekennzeichnete Zahlen sind Annahmen, keine offengelegten Unternehmensdaten. Alle Berechnungen laufen in deinem Browser.`
+};
+function applyStatic(){
+  document.querySelectorAll('[data-i]').forEach(el=>{const k=el.dataset.i;if(!(k in DE))return;if(el._en===undefined)el._en=el.innerHTML;el.innerHTML=lang==='de'&&DE[k]!==undefined?DE[k]:el._en});
+  document.documentElement.lang=lang;
+  document.getElementById('langOn').textContent=lang==='de'?'DE':'EN';
+  document.getElementById('langOff').textContent=lang==='de'?'EN':'DE';
+  const lb=document.getElementById('langBtn');lb.title=L('Auf Deutsch umschalten','Switch to English');lb.setAttribute('aria-label',lb.title);
+}
+
+/* ================= TCO VOFI ENGINE ================= */
+function depreciation(capex,T,mode,life){const dep=new Array(T+1).fill(0);capex.forEach((c,t0)=>{if(!c)return;if(mode==='full'){dep[Math.min(t0+1,T)]+=c;return}const n=Math.max(1,Math.min(life,T-t0));for(let k=1;k<=n;k++)dep[t0+k]+=c/n});return dep}
+function vofi(alt,p){
+  const T=p.T,E=p.E,dep=depreciation(alt.capex,T,p.depMode,p.depLife),rows=[];
+  let bal=E-alt.capex[0]-alt.opex[0]+alt.inflow[0];
+  rows.push({t:0,inflow:alt.inflow[0],out:alt.capex[0]+alt.opex[0],series:alt.inflow[0]-alt.capex[0]-alt.opex[0],credInt:0,debInt:0,dep:0,taxBase:0,tax:0,bal});
+  const S={inflow:alt.inflow[0],opex:alt.opex[0],capex:alt.capex[0],credInt:0,debInt:0,tax:0};
+  for(let t=1;t<=T;t++){
+    const credInt=bal>0?bal*p.rc:0,debInt=bal<0?-bal*p.rd:0;
+    const series=alt.inflow[t]-alt.opex[t]-alt.capex[t];
+    const taxBase=alt.inflow[t]-alt.opex[t]-dep[t]+credInt-debInt;
+    const tax=p.tax*taxBase;
+    bal=bal+credInt-debInt+series-tax;
+    rows.push({t,inflow:alt.inflow[t],out:alt.opex[t]+alt.capex[t],series,credInt,debInt,dep:dep[t],taxBase,tax,bal});
+    S.inflow+=alt.inflow[t];S.opex+=alt.opex[t];S.capex+=alt.capex[t];S.credInt+=credInt;S.debInt+=debInt;S.tax+=tax;
+  }
+  const ra=p.rc*(1-p.tax),oppEV=E*Math.pow(1+ra,T),oppInt=(oppEV-E)/(1-p.tax),oppTax=oppInt*p.tax,tco=oppEV-bal;
+  const rp=S.inflow-S.opex-S.capex,bt=rp+S.credInt-S.debInt,at=bt-S.tax;
+  return {rows,dep,S,oppEV,oppInt,oppTax,endValue:bal,tco,pv:tco/Math.pow(1+ra,T),
+    t5:{salvage:S.inflow,expenses:S.opex,dep:S.capex,rp,reinvest:S.credInt,interest:S.debInt,bt,tax:S.tax,at,oppInt,oppTax,imp:at-oppInt+oppTax}};
+}
+
+/* ================= SCENARIO ================= */
+const BASE={
+  vol1:8,growth:0.30,priceDecline:0.10,pFrontier:1.50,pOpen:0.40,fallbackShare:0.05,fteCost:0.25,
+  fteA:2,fteB:3,fteC:6,fteD:7,govA:0.2,govB:0.3,govSelf:0.5,tokPerGpu:8/56,tuning:0.35,gpuHour:3.8,obs:0.2,
+  kwNode:14.3,pue:1.3,kwh:0.18,colo:0.025,nvaie:0.0045,dgxPrice:0.50,network:0.6,hwDecline:0.15,salvage:0.15,salvageNew:0.45,
+  engineers:2000,salary:0.2,days:225,waitD:2.5,waitC:2.0,waitB:0.5,qualityPct:0.25,talentPrem:0.25,reuseD:0.4,reuseC:0.3,obsol:0.30,
+  rc:0.04,rd:0.065,tax:0.25
+};
+let A=structuredClone(BASE), linear=false, hiddenOn=true;
+const COLORS=['--s1','--s2','--s3','--s4'];
+const NAMES_EN=[['A','Frontier API','Claude Code / Codex, metered'],['B','Managed open-weight API','Same GLM weights, EU-hosted provider'],['C','Self-hosted · rented B200','Reserved cloud GPUs + own inference stack'],['D','Self-hosted · owned DGX B200','What Revolut appears to run']];
+const NAMES_DE=[['A','Frontier-API','Claude Code / Codex, nutzungsabhängig'],['B','Gemanagte Open-Weight-API','Dieselben GLM-Gewichte, Anbieter mit EU-Hosting'],['C','Selbst gehostet · gemietete B200','Reservierte Cloud-GPUs + eigener Inferenz-Stack'],['D','Selbst gehostet · eigene DGX B200','Was Revolut offenbar betreibt']];
+const NAMES=()=>lang==='de'?NAMES_DE:NAMES_EN;
+const SHORT=()=>lang==='de'?['Frontier-API','Gemanagtes GLM','Gemietete B200','Eigene DGX']:['Frontier API','Managed GLM','Rented B200','Owned DGX'];
+const SHORT2=()=>lang==='de'?['Frontier','Gemanagt','Gemietet','Eigen']:['Frontier','Managed','Rented','Owned'];
+
+function sizing(a){
+  const vol=[0];for(let t=1;t<=3;t++)vol[t]=a.vol1*Math.pow(1+a.growth,t-1);
+  const node=g=>Math.max(8,Math.ceil(g/8)*8);
+  const g1=node(Math.max(vol[1],vol[2]/(1+a.tuning))/a.tokPerGpu);
+  const g3=Math.max(g1,node(vol[3]/(a.tokPerGpu*(1+a.tuning))));
+  return {vol,g1,g3};
+}
+function build(a,withHidden){
+  const T=3,Z=()=>new Array(T+1).fill(0),{vol,g1,g3}=sizing(a),N=NAMES();
+  const fx=t=>Math.pow(1-a.priceDecline,t-1);
+  const fallback=t=>vol[t]*a.fallbackShare*a.pFrontier*fx(t);
+  const mk=(i)=>({id:N[i][0],name:N[i][1],sub:N[i][2],color:COLORS[i],capex:Z(),opex:Z(),inflow:Z(),lines:[],hid:Z()});
+  const alts=[mk(0),mk(1),mk(2),mk(3)];
+  const add=(alt,label,t,v,kind='opex',hidden=false)=>{alt[kind][t]+=v;let Ln=alt.lines.find(l=>l.label===label);if(!Ln){Ln={label,v:Z(),kind,hidden};alt.lines.push(Ln)}Ln.v[t]+=v;if(hidden)alt.hid[t]+=v};
+  const [Aa,Bb,Cc,Dd]=alts, perMin=a.engineers*a.days*(1/60)*(a.salary*1e6/1800)/1e6, payroll=a.engineers*a.salary;
+  const outagePerH=a.engineers*(a.salary*1e6/1800)*0.3/1e6;
+  const t_fb=L('Frontier fallback (edge cases, images)','Frontier-Fallback (Sonderfälle, Bilder)'),t_gov=L('Governance, security & model risk','Governance, Sicherheit & Modellrisiko');
+  for(let t=1;t<=T;t++){
+    const gpus=t<3?g1:g3,nodes=gpus/8;
+    add(Aa,L('Tokens · frontier API','Token · Frontier-API'),t,vol[t]*a.pFrontier*fx(t));
+    add(Aa,L('AI platform, FinOps & vendor mgmt','KI-Plattform, FinOps & Lieferantenmgmt.'),t,a.fteA*a.fteCost);
+    add(Aa,t_gov,t,a.govA);
+    add(Bb,L('Tokens · managed open-weight API','Token · gemanagte Open-Weight-API'),t,vol[t]*(1-a.fallbackShare)*a.pOpen*fx(t));
+    add(Bb,t_fb,t,fallback(t));
+    add(Bb,L('AI platform, routing & evals','KI-Plattform, Routing & Evals'),t,a.fteB*a.fteCost);
+    add(Bb,t_gov,t,a.govB);
+    add(Cc,L('GPU rental · reserved B200','GPU-Miete · reservierte B200'),t,gpus*8760*a.gpuHour*fx(t)/1e6);
+    add(Cc,t_fb,t,fallback(t));
+    add(Cc,L('Inference / MLOps team','Inferenz-/MLOps-Team'),t,a.fteC*a.fteCost);
+    add(Cc,L('Observability, storage, egress','Monitoring, Speicher, Datentransfer'),t,a.obs);
+    add(Cc,t_gov,t,a.govSelf);
+    add(Dd,L('Power (incl. PUE)','Strom (inkl. PUE)'),t,nodes*a.kwNode*a.pue*8760*a.kwh/1e6);
+    add(Dd,L('Colocation / data-centre space','Colocation / Rechenzentrumsfläche'),t,nodes*a.colo);
+    add(Dd,L('NVIDIA support & software','NVIDIA-Support & Software'),t,gpus*a.nvaie);
+    add(Dd,t_fb,t,fallback(t));
+    add(Dd,L('Inference / MLOps + DC ops team','Inferenz-/MLOps- + RZ-Betriebsteam'),t,a.fteD*a.fteCost);
+    add(Dd,L('Observability & storage','Monitoring & Speicher'),t,a.obs*0.75);
+    add(Dd,t_gov,t,a.govSelf);
+    if(withHidden){
+      const H={wait:[0,a.waitB,a.waitC,a.waitD].map(m=>m*perMin),
+        quality:[0,1,1,1].map(k=>k*payroll*a.qualityPct/100),
+        talent:[a.fteA,a.fteB,a.fteC,a.fteD].map(f=>f*a.talentPrem),
+        churn:[0.05,0.10,0.30,0.40],
+        outage:[3,6,6,10].map(h=>h*outagePerH),
+        reuse:[0,0,-a.reuseC,-a.reuseD]};
+      // Technology obsolescence: market price per unit of compute falls by a.obs per year (new GPU generations).
+      // D is locked to year-0 hardware: its hardware cost basis does not follow the market.
+      // C renews 1-year reservations: rental already falls by priceDecline; it misses half of any faster market decline.
+      const hwD=((g1/8)*a.dgxPrice+a.network)/3+nodes*a.kwNode*a.pue*8760*a.kwh/1e6+nodes*a.colo+gpus*a.nvaie;
+      const rentC=gpus*8760*a.gpuHour*fx(t)/1e6;
+      const lagD=1-Math.pow(1-a.obsol,t-1);
+      const lagC=Math.max(0,1-Math.pow(1-a.obsol,t-1)/Math.pow(1-a.priceDecline,t-1))*0.5;
+      H.obs=[0,0,rentC*lagC,hwD*lagD];
+      const hp=L('Hidden · ','Versteckt · ');
+      alts.forEach((x,i)=>{
+        add(x,hp+L('waiting / latency at peak','Warten / Latenz bei Spitzenlast'),t,H.wait[i],'opex',true);
+        add(x,hp+L('quality gap & rework','Qualitätslücke & Nacharbeit'),t,H.quality[i],'opex',true);
+        add(x,hp+L('talent diverted from product','vom Produkt abgezogene Talente'),t,H.talent[i],'opex',true);
+        add(x,hp+L('technology obsolescence (GPU generations)','technologische Veralterung (GPU-Generationen)'),t,H.obs[i],'opex',true);
+        add(x,hp+L('model churn & re-validation','Modellwechsel & Neuvalidierung'),t,H.churn[i],'opex',true);
+        add(x,hp+L('outage / concentration risk','Ausfall- / Klumpenrisiko'),t,H.outage[i],'opex',true);
+        add(x,hp+L('off-peak capacity reuse (credit)','Nutzung freier Nachtkapazität (Gutschrift)'),t,H.reuse[i],'opex',true);
+      });
+    }
+  }
+  add(Dd,L('DGX B200 systems + network','DGX-B200-Systeme + Netzwerk'),0,(g1/8)*a.dgxPrice+a.network,'capex');
+  const exp=(g3-g1)/8*a.dgxPrice*(1-a.hwDecline);
+  if(exp>0)add(Dd,L('Capacity expansion (start of year 3)','Kapazitätserweiterung (Beginn Jahr 3)'),2,exp,'capex');
+  add(Dd,L('Salvage value of hardware','Restwert der Hardware'),3,(g1/8)*a.dgxPrice*a.salvage+exp*a.salvageNew,'inflow');
+  return {alts,vol,g1,g3};
+}
+const params=a=>({T:3,E:(sizing(a).g1/8)*a.dgxPrice+a.network,rc:a.rc,rd:a.rd,tax:a.tax,depMode:linear?'linear':'full',depLife:3});
+function runAll(a,withHidden){const b=build(a,withHidden),p=params(a);return {...b,p,res:b.alts.map(x=>vofi(x,p))}}
+
+/* ================= FORMAT ================= */
+const loc=()=>lang==='de'?'de-DE':'en-US';
+const nf=(v,d=0)=>v.toLocaleString(loc(),{minimumFractionDigits:d,maximumFractionDigits:d});
+const fM=v=>{const a=Math.abs(v),d=a>=100?0:(a>=10?1:2),s=v<0?'−':'';return lang==='de'?s+nf(a,d)+' Mio. $':s+'$'+nf(a,d)+'M'};
+const usd=(v,d=2)=>lang==='de'?nf(v,d)+' $':'$'+nf(v,d);
+const usdK=v=>lang==='de'?nf(v*1000,0)+' Tsd. $':'$'+nf(v*1000,0)+'k';
+const fK=v=>{if(Math.abs(v)<0.0005)return '–';const s=nf(Math.round(Math.abs(v)*1000),0);return v<0?'−'+s:s};
+const fEUR=v=>nf(Math.round(v),0);
+const pct=v=>{const x=v*100,d=Math.abs(x%1)>1e-9?1:0;return nf(x,d)+(lang==='de'?' %':'%')};
+const tok=(v,d)=>{const dd=d===undefined?(v%1?1:0):d;return lang==='de'?nf(v,dd)+' Bio.':nf(v,dd)+'T'};
+const axM=t=>lang==='de'?nf(t,t%1?1:0)+' Mio.':'$'+t+'M';
+const tip=document.getElementById('tip');
+function showTip(e,html){tip.innerHTML=html;tip.hidden=false;const w=tip.offsetWidth,h=tip.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=e.clientX-w-14;if(y+h>innerHeight-8)y=e.clientY-h-14;tip.style.left=Math.max(8,x)+'px';tip.style.top=Math.max(8,y)+'px'}
+function hideTip(){tip.hidden=true}
+let tipTimer=0;
+function hover(el,fn,leave){
+  const show=e=>{clearTimeout(tipTimer);fn(e)};
+  el.addEventListener('pointermove',show);el.addEventListener('pointerdown',show);
+  el.addEventListener('pointerleave',e=>{const done=()=>{hideTip();leave&&leave()};if(e.pointerType==='touch'){clearTimeout(tipTimer);tipTimer=setTimeout(done,2500)}else done()});
+}
+function cw(el){const cs=getComputedStyle(el);const w=el.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);return Math.max(280,Math.round(w||760))}
+
+/* ================= THEME ================= */
+const themeBtn=document.getElementById('themeBtn');
+const SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';
+const MOON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7z"/></svg>';
+function effTheme(){const t=document.documentElement.getAttribute('data-theme');return t||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}
+function paintThemeBtn(){const d=effTheme()==='dark';themeBtn.innerHTML=d?SUN:MOON;const l=d?L('Switch to light mode','Zum hellen Modus wechseln'):L('Switch to dark mode','Zum dunklen Modus wechseln');themeBtn.setAttribute('aria-label',l);themeBtn.title=l}
+try{const s=localStorage.getItem('tco-vofi-theme');if(s==='dark'||s==='light')document.documentElement.setAttribute('data-theme',s)}catch(e){}
+themeBtn.addEventListener('click',()=>{const n=effTheme()==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('tco-vofi-theme',n)}catch(e){}paintThemeBtn()});
+new MutationObserver(paintThemeBtn).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',paintThemeBtn);
+
+/* ================= VALIDATION (paper) ================= */
+function renderValidation(){
+  const paper=(lic,tax)=>vofi({capex:[30018,0,0,0],opex:[0,40000+lic,40000+lic,40000+lic],inflow:[0,0,0,6000]},{T:3,E:30018,rc:.15,rd:.10,tax,depMode:'linear',depLife:3}).tco;
+  const rows=[[L('Commercial · profit org.','Kommerziell · gewinnorientiert'),118040,paper(10000,.4)],[L('Open Source · profit org.','Open Source · gewinnorientiert'),98939,paper(0,.4)],[L('Commercial · non-profit','Kommerziell · gemeinnützig'),205154,paper(10000,0)],[L('Open Source · non-profit','Open Source · gemeinnützig'),172054,paper(0,0)]];
+  document.getElementById('validation').innerHTML=`<thead><tr><th>${L('Case (EUR)','Fall (EUR)')}</th><th>Paper</th><th>${L('Engine','Rechenkern')}</th><th></th></tr></thead><tbody>`+rows.map(r=>`<tr><td>${r[0]}</td><td>${fEUR(r[1])}</td><td>${fEUR(r[2])}</td><td class="${Math.abs(r[1]-r[2])<1?'pos':'neg'}">${Math.abs(r[1]-r[2])<1?L('✓ match','✓ stimmt'):'✗'}</td></tr>`).join('')+'</tbody>';
+}
+
+/* ================= RENDER ================= */
+let curTab=3, R, Rcash, Rhid;
+function render(){
+  Rcash=runAll(A,false); Rhid=runAll(A,true); R=hiddenOn?Rhid:Rcash;
+  renderKPIs();renderVerdict();renderTCOChart();renderAltCards();renderAssump();renderTabs();renderVofi();renderT5();renderNomChart();renderOpp();renderBE();renderTornado();renderObs();renderSensKey();renderMethod();
+}
+function totTokens(){return Rcash.vol.slice(1).reduce((s,v)=>s+v,0)}
+function renderKPIs(){
+  const tA=R.res[0].tco,min=Math.min(...R.res.map(r=>r.tco)),tk=totTokens();
+  document.getElementById('kpis').innerHTML=R.alts.map((x,i)=>{const r=R.res[i],rc=Rcash.res[i],rh=Rhid.res[i];
+    return `<div class="kpi ${r.tco===min?'win':''}"><span class="sw" style="background:var(${x.color})"></span>
+    <div class="lbl"><span>${x.id} · ${x.name}</span>${r.tco===min?`<span class="chip good">${L('lowest','niedrigste')}</span>`:''}</div>
+    <div class="big">${fM(r.tco)}</div>
+    <div class="sub"><span>${L('Cash TCO VOFI','Cash-TCO-VOFI')} <b>${fM(rc.tco)}</b> · ${L('extended','erweitert')} <b>${fM(rh.tco)}</b></span>
+    <span>${i===0?L('Reference','Referenz'):'<b>'+nf(tA/r.tco,1)+'×</b> '+L('cheaper than A','günstiger als A')} · <b>${usd(r.pv/tk)}</b>${L('/M tok after tax','/Mio. Token nach Steuern')}</span></div></div>`}).join('');
+}
+function renderVerdict(){
+  const c=Rcash.res.map(r=>r.tco),h=Rhid.res.map(r=>r.tco),N=NAMES();
+  const bestC=c.indexOf(Math.min(...c)),bestH=h.indexOf(Math.min(...h));
+  const nom=Rcash.alts.map(x=>x.capex.reduce((s,v)=>s+v)+x.opex.reduce((s,v)=>s+v)-x.inflow.reduce((s,v)=>s+v));
+  const be=breakeven(),r1=nf(c[0]/c[3],1);
+  document.getElementById('verdictHead').textContent=L(
+    `Self-hosting beats the frontier API by about ${r1}×, not 10×. Against a managed API serving the same open model, owning GPUs gives ${c[3]<c[1]?'only a small edge':'no edge'} in cash terms, and ${h[3]<h[1]?'keeps a small edge':'loses'} once hidden opportunity costs are included.`,
+    `Self-Hosting schlägt die Frontier-API um etwa ${r1}×, nicht 10×. Gegenüber einer gemanagten API mit demselben offenen Modell bringen eigene GPUs in Cash-Betrachtung ${c[3]<c[1]?'nur einen kleinen Vorteil':'keinen Vorteil'} und ${h[3]<h[1]?'behalten einen kleinen Vorteil':'verlieren'}, sobald versteckte Opportunitätskosten einbezogen werden.`);
+  const items=lang==='de'?[
+    `<b>Die 10× stimmen nur beim falschen Vergleich.</b> Eigene DGX vs. Frontier-API: nominal ${fM(nom[0])} vs. ${fM(nom[3])} (${nf(nom[0]/nom[3],1)}×), TCO VOFI ${fM(c[0])} vs. ${fM(c[3])} (${r1}×) über 3 Jahre.`,
+    `<b>Der Großteil der Ersparnis kommt vom Modell, nicht von der Hardware.</b> Schon der Wechsel von Frontier zu offenen Gewichten auf einer <i>gemanagten</i> API (B) senkt den TCO VOFI auf ${fM(c[1])}, ganz ohne GPU-Kauf.`,
+    `<b>Am günstigsten in Cash-Betrachtung: ${N[bestC][1]}</b> (${fM(c[bestC])}). Am günstigsten mit versteckten Kosten: <b>${N[bestH][1]}</b> (${fM(h[bestH])}).`,
+    `<b>VOFI verändert die Zahlen.</b> Steuereffekte und Zinsen senken die nominalen Summen um ${pct(1-c[3]/nom[3])} bis ${pct(1-c[0]/nom[0])}. Dank UK Full Expensing kann die Option mit eigenen DGX ihre Investition im ersten Jahr voll absetzen.`,
+    `<b>Produktivität dominiert.</b> Verliert jeder Entwickler mit dem offenen Modell mehr als etwa <b>${Math.round(be/100*480)} Minuten pro Tag</b> (${nf(be,1)} % Produktivität), gewinnt die Frontier-API trotz höherem Preis.`,
+    `<b>Versteckte Kosten begünstigen Flexibilität.</b> Wartezeiten bei Spitzenlast, das Inferenz-Team, schnelle GPU-Veralterung, Modellwechsel und Ausfälle eines einzelnen Clusters erhöhen die Option mit eigenen GPUs um ${fM(h[3]-c[3])}, die gemanagte API nur um ${fM(h[1]-c[1])}.`
+  ]:[
+    `<b>The 10× is real only on the wrong comparison.</b> Owned DGX vs frontier API: nominal ${fM(nom[0])} vs ${fM(nom[3])} (${nf(nom[0]/nom[3],1)}×), and TCO VOFI ${fM(c[0])} vs ${fM(c[3])} (${r1}×) over 3 years.`,
+    `<b>Most of the saving comes from the model, not the hardware.</b> Switching from frontier to open weights on a <i>managed</i> API (B) already brings TCO VOFI to ${fM(c[1])}, without buying any GPUs.`,
+    `<b>Cheapest in cash terms: ${N[bestC][1]}</b> (${fM(c[bestC])}). Cheapest with hidden costs: <b>${N[bestH][1]}</b> (${fM(h[bestH])}).`,
+    `<b>VOFI changes the numbers.</b> Tax shields and interest cut nominal totals by ${pct(1-c[3]/nom[3])}–${pct(1-c[0]/nom[0])}. UK full expensing lets the owned DGX option deduct its capex in year 1.`,
+    `<b>Productivity dominates.</b> If the open model costs each engineer more than about <b>${Math.round(be/100*480)} minutes a day</b> (${nf(be,1)}% productivity), the frontier API wins despite its higher price.`,
+    `<b>Hidden costs favour flexibility.</b> Peak-time waiting, the inference team, fast GPU obsolescence, model churn and single-cluster outages add ${fM(h[3]-c[3])} to the owned-GPU option, against ${fM(h[1]-c[1])} for the managed API.`
+  ];
+  document.getElementById('findings').innerHTML=items.map((t,i)=>`<li><span class="n">${i+1}</span><span>${t}</span></li>`).join('');
+}
+function beDetail(){
+  const p=params(A),payroll=A.engineers*A.salary,per=vofi({capex:[0,0,0,0],opex:[0,1,1,1].map(k=>k*payroll*0.01),inflow:[0,0,0,0]},{...p,E:0}).tco;
+  const c=Rcash.res.map(r=>r.tco),best=Math.min(c[1],c[2],c[3]),bi=c.indexOf(best),be=(c[0]-best)/per;
+  return {payroll,per,saving:c[0]-best,bi,be,mins:be/100*8*60};
+}
+function breakeven(){
+  const p=params(A),per=vofi({capex:[0,0,0,0],opex:[0,1,1,1].map(k=>k*A.engineers*A.salary*0.01),inflow:[0,0,0,0]},{...p,E:0}).tco;
+  const c=Rcash.res.map(r=>r.tco),best=Math.min(c[1],c[2],c[3]);
+  return (c[0]-best)/per;
+}
+function niceTicks(max,n=5){const raw=max/n,mag=Math.pow(10,Math.floor(Math.log10(raw))),st=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw);const out=[];for(let v=0;v<=max+1e-9;v+=st)out.push(+v.toFixed(6));return out}
+
+/* ---------- Summary chart ---------- */
+function renderTCOChart(){
+  const el=document.getElementById('tcoChart'),W=cw(el),nar=W<560,rowH=46,top=8,left=nar?118:230,right=lang==='de'?84:62,H=top+4*rowH+28;
+  const vals=Rcash.res.map((r,i)=>({cash:r.tco,hid:Rhid.res[i].tco-r.tco})),SH=SHORT();
+  const max=Math.max(...vals.map(v=>v.cash+Math.max(0,v.hid)))*1.05,x=v=>left+(W-left-right)*v/max;
+  const ticks=niceTicks(max,nar?4:5);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="TCO VOFI"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--surface)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--muted)" stroke-width="2"/></pattern></defs><g class="grid">`;
+  ticks.forEach(t=>s+=`<line x1="${x(t)}" x2="${x(t)}" y1="${top}" y2="${top+4*rowH}"/><text x="${x(t)}" y="${top+4*rowH+16}" text-anchor="middle">${axM(t)}</text>`);
+  s+='</g>';
+  R.alts.forEach((a,i)=>{const y=top+i*rowH+10,h=26,v=vals[i];
+    s+=`<text class="lab" x="0" y="${y+h/2+4}">${a.id} · ${nar?SH[i]:a.name.replace(' · ',' ')}</text>`;
+    s+=`<g data-i="${i}" class="bar"><rect x="${left}" y="${y}" width="${Math.max(0,x(v.cash)-left-1)}" height="${h}" rx="4" style="fill:var(${a.color})"/>`;
+    if(hiddenOn&&v.hid>0)s+=`<rect x="${x(v.cash)+1}" y="${y}" width="${Math.max(0,x(v.cash+v.hid)-x(v.cash)-1)}" height="${h}" rx="4" fill="url(#hatch)" style="stroke:var(${a.color})" stroke-width="1.5"/>`;
+    s+=`<rect x="${left}" y="${y-6}" width="${W-left}" height="${h+12}" fill="transparent"/></g>`;
+    const end=v.cash+(hiddenOn?Math.max(0,v.hid):0);
+    s+=`<text class="val" x="${x(end)+8}" y="${y+h/2+4}">${fM(end)}</text>`;});
+  s+='</svg>';
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h3>${L('TCO VOFI after 3 years, terminal value','TCO VOFI nach 3 Jahren, Endwert')}</h3><div class="legend"><span><span class="dot" style="background:var(--muted)"></span>${L('Cash TCO VOFI','Cash-TCO-VOFI')}</span>${hiddenOn?`<span><span class="dot" style="border:1.5px solid var(--muted);background-image:repeating-linear-gradient(45deg,var(--muted) 0 2px,transparent 2px 5px)"></span>${L('Hidden opportunity costs','Versteckte Opportunitätskosten')}</span>`:''}</div></div>`+s+`<p class="small muted">${L('Lower is better. TCO VOFI is the end-of-year-3 wealth gap compared with investing the same internal funds in financial assets. Tap or hover a bar for details.','Niedriger ist besser. TCO VOFI ist die Vermögenslücke am Ende von Jahr 3 im Vergleich zur Anlage derselben Eigenmittel in Finanzanlagen. Für Details auf einen Balken tippen oder zeigen.')}</p>`;
+  el.querySelectorAll('.bar').forEach(g=>hover(g,e=>{const i=+g.dataset.i;showTip(e,`<b>${R.alts[i].id} · ${R.alts[i].name}</b><div class="r"><span>${L('Cash TCO VOFI','Cash-TCO-VOFI')}</span><span>${fM(vals[i].cash)}</span></div><div class="r"><span>${L('Hidden opportunity','Versteckte Opportunität')}</span><span>${fM(vals[i].hid)}</span></div><div class="r"><span>${L('Extended','Erweitert')}</span><span>${fM(vals[i].cash+vals[i].hid)}</span></div>`)}));
+}
+
+/* ---------- Step 1 ---------- */
+function renderAltCards(){
+  const {g1,g3}=Rcash,a=A;
+  const d=lang==='de'?[
+    `Nutzungsabhängige Token zu einem Mischpreis von <b>${usd(a.pFrontier)}/Mio.</b> (Listenpreis Opus-Klasse 4 $ Input / 20 $ Output, ca. 90 % Cache-Treffer). Preise sinken um ${pct(a.priceDecline)} pro Jahr. ${a.fteA} VZÄ für Gateway und FinOps.`,
+    `GLM bei einem Enterprise-Anbieter (EU-Region, keine Datenspeicherung) zu einem Mischpreis von <b>${usd(a.pOpen)}/Mio.</b>, wobei ${pct(a.fallbackShare)} des Verkehrs weiter an Frontier-Modelle gehen. ${a.fteB} VZÄ für Routing und Evals.`,
+    `<b>${g1}</b> reservierte B200 (<b>${g3}</b> in Jahr 3) zu <b>${usd(a.gpuHour)}/GPU-h</b>. Keine Investition. ${a.fteC} VZÄ Inferenz-Team, Monitoring, Frontier-Fallback.`,
+    `<b>${g1/8}</b> DGX B200 zu je <b>${usdK(a.dgxPrice)}</b> plus ${usdK(a.network)} Netzwerk in t0, Erweiterung auf ${g3/8} Knoten in Jahr 3. Strom, Colocation, NVIDIA-Support, ${a.fteD} VZÄ. Restwert ${pct(a.salvage)}.`]:[
+    `Metered tokens at a blended <b>${usd(a.pFrontier)}/M</b> (Opus-class list price $4 in / $20 out, about 90% cache reads). Prices fall ${pct(a.priceDecline)} a year. ${a.fteA} FTE for the gateway and FinOps.`,
+    `GLM on an enterprise provider (EU region, zero retention) at a blended <b>${usd(a.pOpen)}/M</b>, with ${pct(a.fallbackShare)} of traffic still routed to frontier models. ${a.fteB} FTE for routing and evals.`,
+    `<b>${g1}</b> reserved B200s (<b>${g3}</b> in year 3) at <b>${usd(a.gpuHour)}/GPU-h</b>. No capex. ${a.fteC} FTE inference team, observability, frontier fallback.`,
+    `<b>${g1/8}</b> DGX B200 at <b>${usdK(a.dgxPrice)}</b> each plus ${usdK(a.network)} networking at t0, expanded to ${g3/8} nodes in year 3. Power, colocation, NVIDIA support, ${a.fteD} FTE. Salvage value ${pct(a.salvage)}.`];
+  document.getElementById('altCards').innerHTML=R.alts.map((x,i)=>`<div class="card"><div style="display:flex;gap:8px;align-items:center"><span class="dot" style="background:var(${x.color})"></span><h3>${x.id} · ${x.name}</h3></div><p>${x.sub}.</p><p>${d[i]}</p></div>`).join('');
+}
+function renderAssump(){
+  const a=A,{vol,g1,g3}=Rcash,p=Rcash.p;
+  const rows=[
+    ['grp',L('Volume','Volumen')],
+    [L('Token volume, year 1 / 2 / 3','Token-Volumen, Jahr 1 / 2 / 3'),`${tok(vol[1],1)} / ${tok(vol[2],1)} / ${tok(vol[3],1)}`,L('Derived from $0.30/M × ≈$2.4M/yr fleet cost; growth ','Abgeleitet aus 0,30 $/Mio. × ≈ 2,4 Mio. $/Jahr Flottenkosten; Wachstum ')+pct(a.growth)+L('/yr','/Jahr')],
+    [L('GPUs required (yr 1–2 / yr 3)','Benötigte GPUs (Jahr 1–2 / Jahr 3)'),`${g1} / ${g3}`,L('0.143T tokens per GPU-year (Revolut ratio) + ','0,143 Bio. Token pro GPU-Jahr (Revolut-Verhältnis) + ')+pct(a.tuning)+L(' tuning headroom',' Tuning-Reserve')],
+    ['grp',L('Prices','Preise')],
+    [L('Frontier API blended $/M','Frontier-API Mischpreis $/Mio.'),usd(a.pFrontier),L('≈ $500/engineer/month at equal volume; Abitbol: "$1,000 or $10,000"','≈ 500 $/Entwickler/Monat bei gleichem Volumen; Abitbol: „1.000 oder 10.000 $“')],
+    [L('Managed open-weight $/M','Gemanagte Open-Weight $/Mio.'),usd(a.pOpen),L('GLM hosts list $0.07–0.60 in / $1.40–2.20 out; enterprise premium','GLM-Anbieter listen 0,07–0,60 $ Input / 1,40–2,20 $ Output; Enterprise-Aufschlag')],
+    [L('API price decline per year','API-Preisrückgang pro Jahr'),pct(a.priceDecline),L('Historic price-per-capability trend (conservative)','Historischer Trend Preis pro Leistung (konservativ)')],
+    [L('Reserved B200 $/GPU-h','Reservierte B200 $/GPU-h'),usd(a.gpuHour),L('Neocloud on-demand $5–7; 1-year reserved discount','Neocloud on demand 5–7 $; Rabatt für 1-Jahres-Reservierung')],
+    [L('DGX B200 (8 GPUs) / network','DGX B200 (8 GPUs) / Netzwerk'),`${usdK(a.dgxPrice)} / ${usdK(a.network)}`,L('Market quotes $490–515k per system','Marktpreise 490–515 Tsd. $ pro System')],
+    [L('Power per node · PUE · $/kWh','Strom pro Knoten · PUE · $/kWh'),`${nf(a.kwNode,1)} kW · ${nf(a.pue,1)} · ${usd(a.kwh)}`,L('DGX B200 max 14.3 kW; UK commercial tariff','DGX B200 max. 14,3 kW; britischer Gewerbetarif')],
+    [L('Colocation / NVIDIA support','Colocation / NVIDIA-Support'),`${usdK(a.colo)}${L('/node','/Knoten')} · ${lang==='de'?nf(a.nvaie*1000,1)+' Tsd. $':'$'+nf(a.nvaie*1000,1)+'k'}/GPU`,L('Per year','Pro Jahr')],
+    [L('Salvage after 3 yrs (orig. / expansion)','Restwert nach 3 Jahren (Erstkauf / Erweiterung)'),`${pct(a.salvage)} / ${pct(a.salvageNew)}`,L('Accelerated GPU obsolescence (Rubin generation)','Beschleunigte GPU-Veralterung (Rubin-Generation)')],
+    [L('Technology obsolescence (price-performance gain / yr)','Technologische Veralterung (Preis-Leistungs-Gewinn / Jahr)'),pct(a.obsol),L('NVIDIA yearly cadence: Blackwell → Blackwell Ultra → Rubin → Rubin Ultra; hidden cost for C and D','Jährlicher NVIDIA-Takt: Blackwell → Blackwell Ultra → Rubin → Rubin Ultra; versteckte Kosten für C und D')],
+    ['grp',L('People & governance','Personal & Governance')],
+    [L('Fully loaded FTE cost (London)','Vollkosten pro VZÄ (London)'),usdK(a.fteCost),L('Senior ML-infra engineer incl. overhead','Senior ML-Infrastruktur-Engineer inkl. Gemeinkosten')],
+    [L('Team FTE A / B / C / D','Team-VZÄ A / B / C / D'),`${a.fteA} / ${a.fteB} / ${a.fteC} / ${a.fteD}`,L('Reported tuning effort (TTFT 14 s → 1.7 s) implies a dedicated team','Berichteter Tuning-Aufwand (TTFT 14 s → 1,7 s) setzt ein eigenes Team voraus')],
+    [L('Frontier fallback share','Anteil Frontier-Fallback'),pct(a.fallbackShare),L('Claude Code / Codex for edge cases, Gemini for images','Claude Code / Codex für Sonderfälle, Gemini für Bilder')],
+    ['grp',L('Financing & tax (VOFI)','Finanzierung & Steuern (VOFI)')],
+    [L('Internal funds E','Eigenmittel E'),fM(p.E),L('Equal to the owned-hardware capex budget, same for all alternatives','Gleich dem Investitionsbudget für eigene Hardware, für alle Alternativen identisch')],
+    [L('Creditor rate r_c / debtor rate r_d','Habenzins r_c / Sollzins r_d'),`${pct(a.rc)} / ${pct(a.rd)}`,L('Money-market yield on surplus liquidity / marginal funding cost','Geldmarktrendite auf Überschussliquidität / Grenzkosten der Finanzierung')],
+    [L('Tax rate s · depreciation','Steuersatz s · Abschreibung'),`${pct(a.tax)} · ${linear?L('linear 3 yrs','linear 3 Jahre'):'UK Full Expensing'}`,L('UK main rate; plant & machinery 100% first-year allowance','UK-Regelsatz; 100 % Sofortabschreibung für Anlagen & Maschinen')],
+  ];
+  document.getElementById('assumpTable').innerHTML=`<thead><tr><th>${L('Assumption','Annahme')}</th><th>${L('Value','Wert')}</th><th style="text-align:left">${L('Basis','Grundlage')}</th></tr></thead><tbody>`+rows.map(r=>r[0]==='grp'?`<tr class="grp"><td colspan="3">${r[1]}</td></tr>`:`<tr><td>${r[0]}</td><td>${r[1]}</td><td style="text-align:left;white-space:normal;font-family:var(--f-body);color:var(--muted)">${r[2]}</td></tr>`).join('')+'</tbody>';
+}
+
+/* ---------- Step 2 ---------- */
+function renderTabs(){
+  document.getElementById('vofiTabs').innerHTML=R.alts.map((x,i)=>`<button role="tab" type="button" aria-selected="${i===curTab}" data-i2="${i}"><span class="dot" style="background:var(${x.color})"></span>${x.id} · ${x.name}</button>`).join('');
+  document.querySelectorAll('#vofiTabs button').forEach(b=>b.onclick=()=>{curTab=+b.dataset.i2;renderTabs();renderVofi()});
+}
+function renderVofi(){
+  const x=R.alts[curTab],r=R.res[curTab],yrs=[0,1,2,3],kU=L('($k)','(Tsd. $)');
+  let pay=`<thead><tr><th>${L('Series of payments','Zahlungsreihe')} · ${x.id} ${kU}</th>`+yrs.map(t=>`<th>t = ${t}</th>`).join('')+`<th>${L('Total','Summe')}</th></tr></thead><tbody>`;
+  x.lines.filter(l=>l.v.some(v=>Math.abs(v)>1e-9)).forEach(l=>{pay+=`<tr><td>${l.label}</td>${l.v.map(v=>`<td class="${l.kind==='inflow'?'pos':''}">${l.kind==='inflow'&&Math.abs(v)>1e-9?'+':''}${fK(v)}</td>`).join('')}<td>${fK(l.v.reduce((s,v)=>s+v))}</td></tr>`});
+  const out=yrs.map(t=>x.capex[t]+x.opex[t]);
+  pay+=`<tr class="tot"><td>${L('Outpayments','Auszahlungen')}</td>${out.map(v=>`<td>${fK(v)}</td>`).join('')}<td>${fK(out.reduce((s,v)=>s+v))}</td></tr></tbody>`;
+  document.getElementById('payTable').innerHTML=pay;
+  const row=(lab,f,cls='',tot=null)=>`<tr class="${cls}"><td>${lab}</td>${r.rows.map(q=>{const v=f(q);return `<td class="${v<0?'neg':''}">${fK(v)}</td>`}).join('')}<td>${tot===null?'':fK(tot)}</td></tr>`;
+  let v=`<thead><tr><th>${L('VOFI investment','VOFI Investition')} · ${x.id} ${kU}</th>`+yrs.map(t=>`<th>t = ${t}</th>`).join('')+`<th>${L('Total','Summe')}</th></tr></thead><tbody>`;
+  v+=row(L('Inpayments (salvage)','Einzahlungen (Restwert)'),q=>q.inflow,'',r.S.inflow);
+  v+=row(L('− Outpayments','− Auszahlungen'),q=>q.out,'',r.S.opex+r.S.capex);
+  v+=row(L('Series of payments','Zahlungsreihe'),q=>q.series,'key');
+  v+=`<tr><td>${L('Internal funds','Eigenmittel')}</td><td>${fK(R.p.E)}</td><td></td><td></td><td></td><td></td></tr>`;
+  v+=`<tr class="grp"><td colspan="6">${L('Financing (current account / financial investment)','Finanzierung (Kontokorrent / Finanzanlage)')}</td></tr>`;
+  v+=row(L('+ Creditor interest earned','+ Habenzinsen'),q=>q.credInt,'',r.S.credInt);
+  v+=row(L('− Debtor interest paid','− Sollzinsen'),q=>q.debInt,'',r.S.debInt);
+  v+=`<tr class="grp"><td colspan="6">${L('Taxes','Steuern')}</td></tr>`;
+  v+=row(L('Depreciation','Abschreibung'),q=>q.dep,'',r.S.capex);
+  v+=row(L('Tax base','Bemessungsgrundlage'),q=>q.taxBase);
+  v+=row(L('− Tax payment / + refund','− Steuerzahlung / + Erstattung'),q=>-q.tax,'',-r.S.tax);
+  v+=`<tr class="grp"><td colspan="6">${L('Balances','Bestände')}</td></tr>`;
+  v+=row(L('Net balance (+ asset / − loan)','Finanzierungssaldo (+ Guthaben / − Kredit)'),q=>q.bal,'tot');
+  v+='</tbody>';
+  document.getElementById('vofiTable').innerHTML=v;
+  document.getElementById('oppNote').innerHTML=L(
+    `<b>VOFI opportunity:</b> internal funds of ${fM(R.p.E)} invested at ${pct(R.p.rc)} for 3 years (after tax ${pct(R.p.rc*(1-R.p.tax))}) grow to an end value of <b class="mono">${fM(r.oppEV)}</b>. Gross creditor interest is ${fM(r.oppInt)} and tax on it ${fM(r.oppTax)}. <b>TCO VOFI of ${x.id}</b> = ${fM(r.oppEV)} − (${fM(r.endValue)}) = <b class="mono">${fM(r.tco)}</b>.`,
+    `<b>VOFI Opportunität:</b> Eigenmittel von ${fM(R.p.E)}, 3 Jahre zu ${pct(R.p.rc)} angelegt (nach Steuern ${pct(R.p.rc*(1-R.p.tax))}), wachsen auf einen Endwert von <b class="mono">${fM(r.oppEV)}</b>. Die Habenzinsen betragen brutto ${fM(r.oppInt)}, die Steuer darauf ${fM(r.oppTax)}. <b>TCO VOFI von ${x.id}</b> = ${fM(r.oppEV)} − (${fM(r.endValue)}) = <b class="mono">${fM(r.tco)}</b>.`);
+}
+
+/* ---------- Step 3 ---------- */
+function renderT5(){
+  const Lr=[[L('Standard earnings','Ordentliche Erträge'),()=>0],[L('+ Exceptional earnings (salvage value)','+ Außerordentliche Erträge (Restwert)'),t=>t.salvage],[L('− Expenses (outpayments − capex)','− Aufwendungen (Auszahlungen − Investition)'),t=>-t.expenses],[L('− Depreciations','− Abschreibungen'),t=>-t.dep],[L('= Real profits (before interest)','= Realgewinn (vor Zinsen)'),t=>t.rp,'tot'],[L('+ Reinvestment earnings (creditor interest)','+ Wiederanlageerträge (Habenzinsen)'),t=>t.reinvest],[L('− Interest payments (debtor interest)','− Zinszahlungen (Sollzinsen)'),t=>-t.interest],[L('= Real profits (before tax)','= Realgewinn (vor Steuern)'),t=>t.bt,'tot'],[L('+ Tax refund / − tax payment','+ Steuererstattung / − Steuerzahlung'),t=>-t.tax],[L('= Real profits (after tax)','= Realgewinn (nach Steuern)'),t=>t.at,'tot'],[L('− Imputed creditor interest (opportunity)','− Kalkulatorische Habenzinsen (Opportunität)'),t=>-t.oppInt],[L('+ Tax payment (opportunity)','+ Steuerzahlung (Opportunität)'),t=>t.oppTax],[L('= Imputed total profits','= Kalkulatorischer Gesamtgewinn'),t=>t.imp,'tot']];
+  const tk=totTokens();
+  let h=`<thead><tr><th>${L('TCO calculation ($k)','TCO-Berechnung (Tsd. $)')}${hiddenOn?L(' · extended',' · erweitert'):' · cash'}</th>`+R.alts.map(x=>`<th><span class="dot" style="background:var(${x.color});margin-right:6px"></span>${x.id}</th>`).join('')+'</tr></thead><tbody>';
+  Lr.forEach(l=>h+=`<tr class="${l[2]||''}"><td>${l[0]}</td>${R.res.map(r=>{const v=l[1](r.t5);return `<td class="${v<0?'neg':''}">${fK(v)}</td>`}).join('')}</tr>`);
+  h+=`<tr class="key"><td>= TCO VOFI</td>${R.res.map(r=>`<td>${fK(r.tco)}</td>`).join('')}</tr>`;
+  h+=`<tr><td>${L('Naive TCO (Σ payments, Gartner style)','Naive TCO (Σ Zahlungen, Gartner-Stil)')}<span class="note">${L('no tax, no interest, no opportunity','ohne Steuern, Zinsen und Opportunität')}</span></td>${R.alts.map(x=>`<td>${fK(x.capex.reduce((s,v)=>s+v)+x.opex.reduce((s,v)=>s+v)-x.inflow.reduce((s,v)=>s+v))}</td>`).join('')}</tr>`;
+  h+=`<tr><td>${L('After-tax cost per 1M tokens','Kosten pro 1 Mio. Token nach Steuern')}<span class="note">${L('PV of TCO VOFI ÷ ','Barwert des TCO VOFI ÷ ')}${tok(tk,1)} ${L('tokens','Token')}</span></td>${R.res.map(r=>`<td>${usd(r.pv/tk,3)}</td>`).join('')}</tr></tbody>`;
+  document.getElementById('t5').innerHTML=h;
+}
+function renderNomChart(){
+  const el=document.getElementById('nomChart'),W=cw(el),nar=W<560,H=nar?260:270,left=lang==='de'?58:46,bottom=nar?48:40,top=16,right=6,SH=SHORT(),SH2=SHORT2();
+  const nom=R.alts.map(x=>x.capex.reduce((s,v)=>s+v)+x.opex.reduce((s,v)=>s+v)-x.inflow.reduce((s,v)=>s+v));
+  const vo=R.res.map(r=>r.tco),max=Math.max(...nom,...vo)*1.1,ticks=niceTicks(max,4);
+  const y=v=>top+(H-top-bottom)*(1-v/max),gw=(W-left-right)/4,bw=Math.min(54,gw/3.2);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="TCO"><defs><pattern id="hatch2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--surface)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--faint)" stroke-width="2"/></pattern></defs><g class="grid">`;
+  ticks.forEach(t=>s+=`<line x1="${left}" x2="${W-right}" y1="${y(t)}" y2="${y(t)}"/><text x="${left-6}" y="${y(t)+4}" text-anchor="end">${axM(t)}</text>`);
+  s+='</g>';
+  R.alts.forEach((x,i)=>{const cx=left+gw*i+gw/2;
+    s+=`<g class="nb" data-i="${i}"><rect x="${cx-bw-1}" y="${y(nom[i])}" width="${bw}" height="${y(0)-y(nom[i])}" rx="4" fill="url(#hatch2)" style="stroke:var(--faint)"/>`;
+    s+=`<rect x="${cx+1}" y="${y(vo[i])}" width="${bw}" height="${y(0)-y(vo[i])}" rx="4" style="fill:var(${x.color})"/><rect x="${cx-bw-4}" y="${top}" width="${2*bw+8}" height="${H-top-bottom}" fill="transparent"/></g>`;
+    s+=`<text class="val" x="${cx-bw/2}" y="${y(nom[i])-6}" text-anchor="middle">${nf(nom[i],1)}</text><text class="val" x="${cx+bw/2+1}" y="${y(vo[i])-6}" text-anchor="middle">${nf(vo[i],1)}</text>`;
+    s+=nar?`<text class="lab" x="${cx}" y="${H-bottom+18}" text-anchor="middle"><tspan x="${cx}">${x.id}</tspan><tspan x="${cx}" dy="15">${SH2[i]}</tspan></text>`:`<text class="lab" x="${cx}" y="${H-bottom+20}" text-anchor="middle">${x.id} · ${SH[i]}</text>`});
+  s+=`<line class="axis" x1="${left}" x2="${W-right}" y1="${y(0)}" y2="${y(0)}"/></svg>`;
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h3>${L('Naive TCO vs TCO VOFI ($M, 3 years)','Naive TCO vs. TCO VOFI (Mio. $, 3 Jahre)')}</h3><div class="legend"><span><span class="dot" style="border:1.5px solid var(--faint);background-image:repeating-linear-gradient(45deg,var(--faint) 0 2px,transparent 2px 5px)"></span>${L('Naive Σ payments','Naive Σ Zahlungen')}</span><span><span class="dot" style="background:var(--muted)"></span>${L('TCO VOFI (series colour)','TCO VOFI (Farbe der Option)')}</span></div></div>`+s;
+  el.querySelectorAll('.nb').forEach(g=>hover(g,e=>{const i=+g.dataset.i;showTip(e,`<b>${R.alts[i].name}</b><div class="r"><span>${L('Naive Σ payments','Naive Σ Zahlungen')}</span><span>${fM(nom[i])}</span></div><div class="r"><span>TCO VOFI</span><span>${fM(vo[i])}</span></div><div class="r"><span>${L('Tax + interest effect','Steuer- + Zinseffekt')}</span><span>${fM(vo[i]-nom[i])}</span></div>`)}));
+}
+
+/* ---------- Opportunity ---------- */
+function renderOpp(){
+  const a=A,perMin=a.engineers*a.days/60*(a.salary*1e6/1800)/1e6;
+  const ex=L('Explicit','Explizit'),hd=L('Hidden','Versteckt'),hp=L('Hidden (positive)','Versteckt (positiv)');
+  const ob=obsImpact();
+  const cards=lang==='de'?[
+    [hd,'Technologische Veralterung (GPU-Generationen)',`NVIDIA bringt inzwischen jedes Jahr eine neue GPU-Generation heraus, und jede senkt die Kosten pro Token deutlich. Wer B200 kauft, bleibt drei Jahre auf dem Stand von 2025 stehen, während Markt- und API-Preise weiter fallen. Bei ${pct(A.obsol)} Preis-Leistungs-Gewinn pro Jahr kostet das die eigene DGX (D) ${fM(ob.D)} und die gemieteten GPUs (C, jährlich kündbar) ${fM(ob.C)} im TCO VOFI über 3 Jahre. Bei A und B trägt der Anbieter das Risiko. Hinzu kommt der niedrigere Restwert, der bereits im Cash-VOFI steckt.</p><div class="gen"><span class="g">Hopper H100 · 2022</span><span class="ar">→</span><span class="g own">Blackwell B200 · 2024/25</span><span class="ar">→</span><span class="g">Blackwell Ultra · 2025</span><span class="ar">→</span><span class="g">Rubin · 2026</span><span class="ar">→</span><span class="g">Rubin Ultra · 2027</span></div><p>`,'bad','span'],
+    [ex,'Kapitalbindung',`Etwa ${fM(Rcash.p.E)} sind in DGX-Hardware gebunden, statt ${pct(a.rc)} Zinsen zu bringen. VOFI bepreist das über den Opportunitätsplan (Endwert ${fM(Rcash.res[3].oppEV)}).`,'acc'],
+    [ex,'Zeitpunkt der Steuerwirkung',`UK Full Expensing setzt die gesamte Investition im ersten Jahr ab, was den Kauf begünstigt. Bei linearer Abschreibung verliert die Kaufoption etwa ${fM(depGap())} im TCO VOFI.`,'acc'],
+    [hd,'Warten bei Spitzenlast',`Der Durchsatz fällt tagsüber auf etwa 200 Token/s gegenüber 800 Token/s nachts. Jede zusätzliche Minute Wartezeit pro Entwickler und Tag kostet etwa ${fM(perMin)} pro Jahr.`,'bad'],
+    [hd,'Qualitätslücke & Nacharbeit',`Die Gehaltssumme der Entwicklung liegt bei etwa ${fM(a.engineers*a.salary)} pro Jahr. Jedes 0,1 % Produktivität, das durch schwächere Modellausgaben verloren geht, kostet ${fM(a.engineers*a.salary*0.001)} pro Jahr.`,'bad'],
+    [hd,'Abgezogene Talente',`${a.fteD} Inferenz- und RZ-Engineers bauen kein Bankprodukt. Der Wert dieser entgangenen Produktarbeit wird mit einem Aufschlag von ${fM(a.talentPrem)} pro VZÄ über dem Gehalt angesetzt.`,'bad'],
+    [hd,'Modellwechsel & Lock-in','Alle paar Monate erscheint ein neues offenes Modell, und jeder Wechsel bedeutet neu quantisieren, neu validieren, neu tunen und prüfen, ob es noch in den B200-Speicher passt. Die API fängt das meiste davon ab.','bad'],
+    [hd,'Klumpen- & Ausfallrisiko','Ein einziger Cluster bedient 2.000 Entwickler, ein Ausfall stoppt also die KI-gestützte Arbeit aller. APIs können auf andere Anbieter ausweichen.','bad'],
+    [hp,'Nutzung freier Nachtkapazität','Freie Nachtkapazität kann Batch-Evals, Betrugsmodelle oder Datenannotation rechnen. Das ist als Gutschrift für C und D angesetzt.','good'],
+    [hp,'Souveränität & Verhandlungsmacht','Daten bleiben in der Region, und Self-Hosting stärkt die Verhandlungsposition gegenüber API-Anbietern. Dieser strategische Wert ist schwer zu bepreisen, fließt daher nicht in die Zahlen ein, sollte aber abgewogen werden.','good']]:[
+    [hd,'Technology obsolescence (GPU generations)',`NVIDIA now ships a new GPU generation every year, and each one cuts the cost per token sharply. Buying B200s freezes you at 2025 technology for three years while market and API prices keep falling. At a ${pct(A.obsol)} yearly price-performance gain, this costs owned DGX (D) ${fM(ob.D)} and rented GPUs (C, renewable yearly) ${fM(ob.C)} of TCO VOFI over 3 years. For A and B the provider carries this risk. On top comes the lower salvage value, which is already in the cash VOFI.</p><div class="gen"><span class="g">Hopper H100 · 2022</span><span class="ar">→</span><span class="g own">Blackwell B200 · 2024/25</span><span class="ar">→</span><span class="g">Blackwell Ultra · 2025</span><span class="ar">→</span><span class="g">Rubin · 2026</span><span class="ar">→</span><span class="g">Rubin Ultra · 2027</span></div><p>`,'bad','span'],
+    [ex,'Capital lock-up',`About ${fM(Rcash.p.E)} is tied up in DGX hardware instead of earning ${pct(a.rc)}. VOFI prices this through the opportunity plan (end value ${fM(Rcash.res[3].oppEV)}).`,'acc'],
+    [ex,'Tax shield timing',`UK full expensing deducts the full capex in year 1, which favours buying. With linear depreciation the owned option loses about ${fM(depGap())} in TCO VOFI.`,'acc'],
+    [hd,'Waiting at peak load',`Throughput drops to about 200 tok/s by day against 800 tok/s at night. Each extra minute of waiting per engineer per day costs about ${fM(perMin)} a year.`,'bad'],
+    [hd,'Quality gap & rework',`Engineering payroll is about ${fM(a.engineers*a.salary)} a year. Every 0.1% of productivity lost to weaker model output costs ${fM(a.engineers*a.salary*0.001)} a year.`,'bad'],
+    [hd,'Talent diverted',`${a.fteD} inference and DC engineers are not building banking product. The value of that lost product work is priced at a premium of ${fM(a.talentPrem)} per FTE above salary.`,'bad'],
+    [hd,'Model churn & lock-in','A new open model ships every few months, and each swap means re-quantizing, re-validating, re-tuning and checking it still fits B200 memory. The API absorbs most of this.','bad'],
+    [hd,'Concentration & outage','One cluster serves 2,000 engineers, so an outage halts AI-assisted work for everyone. APIs can fail over across vendors.','bad'],
+    [hp,'Off-peak reuse','Idle night capacity can run batch evals, fraud models or data labelling. This is entered as a credit for C and D.','good'],
+    [hp,'Sovereignty & leverage','Data stays in-region, and self-hosting gives bargaining power against API vendors. This is strategic value that is hard to price, so it is left out of the numbers but should be weighed.','good']];
+  document.getElementById('oppCards').innerHTML=cards.map(c=>`<div class="card ${c[4]||''}"><span class="chip ${c[3]} tag">${c[0]}</span><h3>${c[1]}</h3><p>${c[2]}</p></div>`).join('');
+  const pre=L('Hidden · ','Versteckt · ');
+  const labels=[...new Set(Rhid.alts.flatMap(x=>x.lines.filter(l=>l.hidden).map(l=>l.label)))];
+  let h=`<thead><tr><th>${L('Hidden opportunity cost, year 1 ($k)','Versteckte Opportunitätskosten, Jahr 1 (Tsd. $)')}</th>`+Rhid.alts.map(x=>`<th><span class="dot" style="background:var(${x.color});margin-right:6px"></span>${x.id}</th>`).join('')+'</tr></thead><tbody>';
+  labels.forEach(lab=>{h+=`<tr><td>${lab.replace(pre,'')}</td>${Rhid.alts.map(x=>{const l=x.lines.find(q=>q.label===lab);const v=l?l.v[1]:0;return `<td class="${v<0?'pos':''}">${fK(v)}</td>`}).join('')}</tr>`});
+  h+=`<tr class="tot"><td>${L('Total hidden, year 1','Summe versteckt, Jahr 1')}</td>${Rhid.alts.map(x=>`<td>${fK(x.hid[1])}</td>`).join('')}</tr>`;
+  h+=`<tr class="key"><td>${L('Effect on TCO VOFI (3 yrs, after tax and interest)','Wirkung auf TCO VOFI (3 Jahre, nach Steuern und Zinsen)')}</td>${Rhid.res.map((r,i)=>`<td>+${fK(r.tco-Rcash.res[i].tco)}</td>`).join('')}</tr></tbody>`;
+  document.getElementById('hiddenTable').innerHTML=h;
+  const d=beDetail(),N=NAMES(),mn=Math.round(d.mins);
+  document.getElementById('breakevenNote').innerHTML=lang==='de'?`<div class="be">
+    <div class="be-head">Wie viel schlechter darf das offene Modell sein? Grenze: ${nf(d.be,2)} % Produktivität, also etwa ${mn} Minuten pro Entwickler und Tag.</div>
+    <ol class="be-steps">
+      <li><span><b>Was das offene Modell spart.</b> Die günstigste Option mit offenem Modell (${N[d.bi][0]} · ${N[d.bi][1]}) kostet über 3 Jahre <b>${fM(d.saving)}</b> weniger als die Frontier-API (Cash-TCO-VOFI).</span></li>
+      <li><span><b>Was 1 % weniger Produktivität kostet.</b> 2.000 Entwickler kosten etwa ${fM(d.payroll)} pro Jahr. 1 % davon sind ${fM(d.payroll*0.01)} pro Jahr, über 3 Jahre nach Steuern und Zinsen <b>${fM(d.per)}</b>.</span></li>
+      <li><span><b>Grenze ausrechnen.</b> <span class="be-calc">${fM(d.saving)} ÷ ${fM(d.per)} = ${nf(d.be,2)} %</span>. Bei einem 8-Stunden-Tag sind das <span class="be-calc">8 h × 60 × ${nf(d.be,2)} % ≈ ${mn} Min.</span></span></li>
+    </ol>
+    <div class="be-scale">
+      <div><b>Weniger als ${mn} Min./Tag verloren</b>Das offene Modell lohnt sich. Die Ersparnis ist größer als der Produktivitätsverlust.</div>
+      <div><b>Mehr als ${mn} Min./Tag verloren</b>Die Frontier-API ist trotz höherem Preis die bessere Investition.</div>
+    </div>
+    <p class="small">Verlorene Zeit entsteht durch Warten auf Antworten, schwächere Vorschläge oder Nacharbeit. Revolut berichtete nach dem Wechsel sogar schnellere Arbeit. Das fiel aber mit dem Wegfall der Ausgabengrenzen zusammen, was auch mit einem API-Vertrag möglich gewesen wäre. Deshalb sollte man die Produktivität pro Modell direkt messen.</p>
+  </div>`:`<div class="be">
+    <div class="be-head">How much worse may the open model be? The limit is ${nf(d.be,2)}% productivity, about ${mn} minutes per engineer per day.</div>
+    <ol class="be-steps">
+      <li><span><b>What the open model saves.</b> The cheapest open-model option (${N[d.bi][0]} · ${N[d.bi][1]}) costs <b>${fM(d.saving)}</b> less over 3 years than the frontier API (cash TCO VOFI).</span></li>
+      <li><span><b>What 1% less productivity costs.</b> 2,000 engineers cost about ${fM(d.payroll)} a year. 1% of that is ${fM(d.payroll*0.01)} a year, or <b>${fM(d.per)}</b> over 3 years after tax and interest.</span></li>
+      <li><span><b>Work out the limit.</b> <span class="be-calc">${fM(d.saving)} ÷ ${fM(d.per)} = ${nf(d.be,2)}%</span>. In an 8-hour day that is <span class="be-calc">8 h × 60 × ${nf(d.be,2)}% ≈ ${mn} min</span>.</span></li>
+    </ol>
+    <div class="be-scale">
+      <div><b>Less than ${mn} min/day lost</b>The open model pays off. The saving is bigger than the productivity loss.</div>
+      <div><b>More than ${mn} min/day lost</b>The frontier API is the better investment despite its higher price.</div>
+    </div>
+    <p class="small">Time is lost by waiting for answers, weaker suggestions or rework. Revolut actually reported faster work after the switch, but that came at the same time as removing spending limits, which an API contract could also have done. So measure productivity per model directly.</p>
+  </div>`;
+}
+function depGap(){const s=linear;linear=true;const l=runAll(A,false).res[3].tco;linear=false;const f=runAll(A,false).res[3].tco;linear=s;return l-f}
+
+/* ---------- Break-even line chart ---------- */
+function renderBE(){
+  const el=document.getElementById('beChart'),W=cw(el),nar=W<560,H=nar?290:320,left=nar?44:56,right=nar?8:16,top=16,bottom=44,N=NAMES(),SH=SHORT();
+  const xs=[];for(let k=0;k<=48;k++)xs.push(0.25*Math.pow(2,k/6));
+  const series=[[],[],[],[]];
+  xs.forEach(v=>{const r=runAll({...A,vol1:v},hiddenOn);r.res.forEach((q,i)=>series[i].push(q.tco/(r.vol[1]+r.vol[2]+r.vol[3])))});
+  const max=Math.min(Math.max(...series.flat())*1.05,Math.max(...series[0])*2.2),lx0=Math.log2(xs[0]),lx1=Math.log2(xs[xs.length-1]);
+  const X=v=>left+(W-left-right)*(Math.log2(v)-lx0)/(lx1-lx0),Y=v=>top+(H-top-bottom)*(1-Math.min(v,max)/max);
+  const ticks=niceTicks(max,5);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="TCO / token"><g class="grid">`;
+  ticks.forEach(t=>s+=`<line x1="${left}" x2="${W-right}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${left-6}" y="${Y(t)+4}" text-anchor="end">${usd(t,t%1?1:0)}</text>`);
+  (nar?[0.25,1,4,16,64]:[0.25,0.5,1,2,4,8,16,32,64]).forEach(v=>s+=`<text x="${X(v)}" y="${H-bottom+18}" text-anchor="middle">${tok(v,v<1?2:0)}</text>`);
+  s+=`</g><text x="${(left+W-right)/2}" y="${H-6}" text-anchor="middle">${L('Year-1 token volume (log scale)','Token-Volumen Jahr 1 (log. Skala)')}</text>`;
+  s+=`<line x1="${X(A.vol1)}" x2="${X(A.vol1)}" y1="${top}" y2="${H-bottom}" style="stroke:var(--ink)" stroke-dasharray="3 4"/><text class="lab" x="${X(A.vol1)+6}" y="${top+12}">Revolut ≈ ${tok(A.vol1)}</text>`;
+  series.forEach((sr,i)=>{s+=`<path d="${sr.map((v,k)=>(k?'L':'M')+X(xs[k]).toFixed(1)+','+Y(v).toFixed(1)).join('')}" fill="none" style="stroke:var(${COLORS[i]})" stroke-width="2" stroke-linejoin="round"/>`;
+    const k=xs.length-1;s+=`<text class="val" x="${X(xs[k])-4}" y="${Y(sr[k])-8}" text-anchor="end">${N[i][0]}</text>`});
+  s+=`<line id="xh" x1="0" x2="0" y1="${top}" y2="${H-bottom}" style="stroke:var(--faint)" visibility="hidden"/><rect id="ov" x="${left}" y="${top}" width="${W-left-right}" height="${H-top-bottom}" fill="transparent"/></svg>`;
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h3>${L('① From what size does owning hardware pay off?','① Ab welcher Größe lohnt sich eigene Hardware?')}</h3><div class="legend">${N.map((n,i)=>`<span><span class="dot" style="background:var(${COLORS[i]})"></span>${n[0]} · ${n[1]}</span>`).join('')}</div></div>`+`<p class="howto">${L('<b>How to read it:</b> each line is the cost per million tokens of one option. Left means a small company, right a very large one. At any size, <b>the lowest line is the cheapest option</b>. The dashed line marks Revolut.','<b>So liest du es:</b> Jede Linie zeigt die Kosten pro Million Token einer Option. Links steht ein kleines Unternehmen, rechts ein sehr großes. Bei jeder Größe gilt: <b>Die unterste Linie ist die günstigste Option.</b> Die gestrichelte Linie markiert Revolut.')} (${hiddenOn?L('extended','erweiterter'):'Cash-'} TCO VOFI)</p>`+s+`<p class="small muted">${L('Terminal TCO VOFI divided by 3-year tokens. Self-hosted lines start high because a fixed team and at least one 8-GPU node are needed even at small volumes. The y-axis is capped for readability.','Endwert-TCO-VOFI geteilt durch die Token aus 3 Jahren. Die Self-Hosting-Linien starten hoch, weil selbst bei kleinen Volumina ein festes Team und mindestens ein 8-GPU-Knoten nötig sind. Die y-Achse ist zur Lesbarkeit begrenzt.')}</p>`;
+  SENS.be={xs,series};
+  const svg=el.querySelector('svg'),ov=svg.querySelector('#ov'),xh=svg.querySelector('#xh');
+  hover(ov,e=>{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const p=pt.matrixTransform(svg.getScreenCTM().inverse());
+    const lv=lx0+(p.x-left)/(W-left-right)*(lx1-lx0);let k=Math.round((lv-lx0)/(lx1-lx0)*(xs.length-1));k=Math.max(0,Math.min(xs.length-1,k));
+    xh.setAttribute('x1',X(xs[k]));xh.setAttribute('x2',X(xs[k]));xh.setAttribute('visibility','visible');
+    const order=series.map((sr,i)=>[i,sr[k]]).sort((a,b)=>a[1]-b[1]);
+    showTip(e,`<b>${tok(xs[k],xs[k]<1?2:1)} ${L('tokens in year 1','Token in Jahr 1')}</b>`+order.map(([i,v])=>`<div class="r"><span><span class="dot" style="background:var(${COLORS[i]});margin-right:6px"></span>${N[i][0]} · ${SH[i]}</span><span>${usd(v,3)}/${L('M','Mio.')}</span></div>`).join(''))},()=>xh.setAttribute('visibility','hidden'));
+}
+
+/* ---------- Tornado: D − B ---------- */
+function renderTornado(){
+  const el=document.getElementById('tornado');
+  const base=R.res[3].tco-R.res[1].tco;
+  const P=[[L('Year-1 token volume','Token-Volumen Jahr 1'),'vol1',4,16,v=>tok(v)],[L('Managed open-weight $/M','Gemanagte Open-Weight $/Mio.'),'pOpen',0.25,0.70,v=>usd(v)],[L('DGX B200 price','DGX-B200-Preis'),'dgxPrice',0.40,0.65,usdK],[L('Self-host team (FTE, D)','Self-Hosting-Team (VZÄ, D)'),'fteD',4,10,v=>v],[L('Volume growth / yr','Volumenwachstum / Jahr'),'growth',0.10,0.60,pct],[L('Salvage value','Restwert'),'salvage',0.05,0.30,pct],[L('Power $/kWh','Strom $/kWh'),'kwh',0.12,0.30,v=>usd(v)],[L('Creditor (opportunity) rate','Habenzins (Opportunität)'),'rc',0.02,0.10,pct],[L('FTE cost','Kosten pro VZÄ'),'fteCost',0.18,0.35,usdK]];
+  if(hiddenOn)P.push([L('Technology obsolescence / yr','Technologische Veralterung / Jahr'),'obsol',0.10,0.50,pct],[L('Peak waiting min/day (D)','Wartezeit Min./Tag (D)'),'waitD',0.5,5,v=>nf(v,1)],[L('Off-peak reuse credit (D)','Gutschrift Nachtkapazität (D)'),'reuseD',0,1.0,v=>fM(v)]);
+  const rows=P.map(([lab,k,lo,hi,f])=>{const Lo=runAll({...A,[k]:lo},hiddenOn),Hh=runAll({...A,[k]:hi},hiddenOn);return {lab,lo:Lo.res[3].tco-Lo.res[1].tco,hi:Hh.res[3].tco-Hh.res[1].tco,flo:String(f(lo)),fhi:String(f(hi))}}).sort((a,b)=>Math.abs(b.hi-b.lo)-Math.abs(a.hi-a.lo));
+  const W=cw(el),nar=W<560;
+  // layout: row labels in their own column (wide) or above each bar (narrow); value labels get reserved space inside the plot
+  const labCol=nar?0:236, pad=nar?66:86, rowH=nar?46:34, barH=nar?16:18, top=nar?18:8, axisH=26;
+  const H=top+rows.length*rowH+axisH;
+  const x0=labCol+pad, x1=W-pad;
+  const lo=Math.min(0,base,...rows.flatMap(r=>[r.lo,r.hi])), hi=Math.max(0,base,...rows.flatMap(r=>[r.lo,r.hi]));
+  const span=(hi-lo)||1, vmin=lo-span*0.04, vmax=hi+span*0.04;
+  const X=v=>x0+(x1-x0)*(v-vmin)/(vmax-vmin);
+  const raw=(vmax-vmin)/(nar?3:5),mag=Math.pow(10,Math.floor(Math.log10(raw))),st=[1,2,2.5,5,10].map(m=>m*mag).find(q=>q>=raw);
+  const ticks=[];for(let t=Math.ceil(vmin/st)*st;t<=vmax+1e-9;t+=st)ticks.push(+t.toFixed(6));
+  const sgn=v=>v>0?'+':v<0?'−':'';
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${L('Sensitivity of owned DGX minus managed API','Sensitivität eigene DGX minus gemanagte API')}"><g class="grid">`;
+  ticks.forEach(t=>s+=`<line x1="${X(t)}" x2="${X(t)}" y1="${top-4}" y2="${H-axisH+4}"/><text x="${X(t)}" y="${H-8}" text-anchor="middle">${sgn(t)}${axM(Math.abs(t))}</text>`);
+  s+=`</g><line x1="${X(0)}" x2="${X(0)}" y1="${top-6}" y2="${H-axisH+6}" style="stroke:var(--ink)" stroke-width="1.5"/>`;
+  rows.forEach((r,i)=>{
+    const y=top+i*rowH+(nar?14:(rowH-barH)/2),cy=y+barH/2+4;
+    s+=`<text class="lab" x="${nar?0:0}" y="${nar?y-5:cy}">${r.lab}</text>`;
+    // two segments from the base: lower assumption value (blue) and higher assumption value (orange)
+    const seg=(v,c)=>{const a=Math.min(X(base),X(v)),w=Math.max(2,Math.abs(X(v)-X(base)));return `<rect x="${a}" y="${y}" width="${w}" height="${barH}" rx="3" style="fill:var(${c})"/>`};
+    const segs=[[r.lo,'--s1'],[r.hi,'--s2']].sort((p,q)=>Math.abs(q[0]-base)-Math.abs(p[0]-base));
+    s+=`<g class="tb" data-i="${i}">${segs.map(([v,c])=>seg(v,c)).join('')}<rect x="${labCol}" y="${y-6}" width="${W-labCol}" height="${barH+12}" fill="transparent"/></g>`;
+    // value labels at the outer ends (inner value on the same side is shown in the tooltip)
+    const ends=[[r.lo,r.flo],[r.hi,r.fhi]];
+    const left=ends.filter(e=>e[0]<base).sort((p,q)=>p[0]-q[0])[0], right=ends.filter(e=>e[0]>=base).sort((p,q)=>q[0]-p[0])[0];
+    if(left)s+=`<text class="val" x="${X(left[0])-6}" y="${cy}" text-anchor="end">${left[1]}</text>`;
+    if(right)s+=`<text class="val" x="${X(right[0])+6}" y="${cy}">${right[1]}</text>`;
+  });
+  s+=`<line x1="${X(base)}" x2="${X(base)}" y1="${top-6}" y2="${H-axisH+6}" style="stroke:var(--accent)" stroke-width="1.5" stroke-dasharray="5 4"/></svg>`;
+  SENS.tor={rows,base};
+  const bTxt=`${sgn(base)}${fM(Math.abs(base))}`;
+  el.innerHTML=`<h3>${L('② Which assumptions matter most?','② Welche Annahmen sind am wichtigsten?')}</h3>
+  <p class="howto">${L(`<b>How to read it:</b> the chart compares owned DGX (D) with the managed API (B). The dashed line is today's gap of ${bTxt}. Each bar shows how far that gap moves when one assumption is set lower (blue) or higher (orange). <b>Long bar = important assumption.</b> Left of the solid zero line, owned hardware is cheaper; right of it, the managed API is cheaper.`,`<b>So liest du es:</b> Das Diagramm vergleicht eigene DGX (D) mit der gemanagten API (B). Die gestrichelte Linie ist der heutige Abstand von ${bTxt}. Jeder Balken zeigt, wie weit sich dieser Abstand verschiebt, wenn eine Annahme niedriger (blau) oder höher (orange) angesetzt wird. <b>Langer Balken = wichtige Annahme.</b> Links der durchgezogenen Nulllinie ist eigene Hardware günstiger, rechts davon die gemanagte API.`)} (${hiddenOn?L('extended','erweiterter'):'Cash-'} TCO VOFI)</p>
+  <div class="tor-legend"><span><span class="dot" style="background:var(--s1)"></span>${L('lower assumption value','niedrigerer Annahmewert')}</span><span><span class="dot" style="background:var(--s2)"></span>${L('higher assumption value','höherer Annahmewert')}</span><span><span class="dash"></span>${L('today','heute')}: ${bTxt}</span></div>
+  <div class="tor-dir" style="margin-left:${nar?0:labCol}px"><span>← ${L('owned DGX cheaper','eigene DGX günstiger')}</span><span>${L('managed API cheaper','gemanagte API günstiger')} →</span></div>`+s+`<p class="small muted">${L('Each bar varies one input between the values shown and holds the rest at the current lab settings. Tap or hover a bar for both values.','Jeder Balken variiert eine Eingabe zwischen den gezeigten Werten und hält den Rest auf den aktuellen Labor-Einstellungen. Für beide Werte auf einen Balken tippen oder zeigen.')}</p>`;
+  el.querySelectorAll('.tb').forEach(g=>hover(g,e=>{const r=rows[+g.dataset.i];showTip(e,`<b>${r.lab}</b><div class="r"><span><span class="dot" style="background:var(--s1);margin-right:6px"></span>${r.flo}</span><span>${sgn(r.lo)}${fM(Math.abs(r.lo))}</span></div><div class="r"><span><span class="dot" style="background:var(--s2);margin-right:6px"></span>${r.fhi}</span><span>${sgn(r.hi)}${fM(Math.abs(r.hi))}</span></div><div class="r"><span>${L('today','heute')}</span><span>${bTxt}</span></div>`)}));
+}
+
+/* ---------- Method: worked example (cash TCO VOFI, strict method) ---------- */
+function renderMethod(){
+  const el=document.getElementById('methodEx');if(!el)return;
+  const i=3,x=Rcash.alts[i],r=Rcash.res[i],p=Rcash.p,N=NAMES();
+  const nom=x.capex.reduce((a,b)=>a+b)+x.opex.reduce((a,b)=>a+b)-x.inflow.reduce((a,b)=>a+b);
+  const taxSave=-r.S.tax, interest=r.S.debInt-r.S.credInt;
+  const c=Rcash.res.map(q=>q.tco),best=c.indexOf(Math.min(...c)),worst=c.indexOf(Math.max(...c));
+  const ex=lang==='de'?`<div class="card"><span class="eyebrow">Rechenbeispiel · ${N[i][0]} · ${N[i][1]}</span>
+      <ol class="calc">
+        <li><span>① Eigenmittel einfach angelegt<span class="sub">${fM(p.E)} zu ${pct(p.rc)} (${pct(p.rc*(1-p.tax))} nach Steuern), 3 Jahre</span></span><span>${fM(r.oppEV)}</span></li>
+        <li><span>② Endkontostand der Option ${N[i][0]}<span class="sub">nach allen Zahlungen, Zinsen und Steuern</span></span><span>${fM(r.endValue)}</span></li>
+        <li class="res"><span>③ TCO VOFI = ① − ②</span><span>${fM(r.tco)}</span></li>
+      </ol>
+      <p>Die Entscheidung für ${N[i][0]} macht das Unternehmen nach 3 Jahren um <b>${fM(r.tco)}</b> ärmer, als wenn es das Geld einfach angelegt hätte.</p></div>`
+    :`<div class="card"><span class="eyebrow">Worked example · ${N[i][0]} · ${N[i][1]}</span>
+      <ol class="calc">
+        <li><span>① Own funds simply invested<span class="sub">${fM(p.E)} at ${pct(p.rc)} (${pct(p.rc*(1-p.tax))} after tax), 3 years</span></span><span>${fM(r.oppEV)}</span></li>
+        <li><span>② Final balance of option ${N[i][0]}<span class="sub">after all payments, interest and taxes</span></span><span>${fM(r.endValue)}</span></li>
+        <li class="res"><span>③ TCO VOFI = ① − ②</span><span>${fM(r.tco)}</span></li>
+      </ol>
+      <p>Choosing ${N[i][0]} leaves the company <b>${fM(r.tco)}</b> poorer after 3 years than if it had simply invested the money.</p></div>`;
+  const why=lang==='de'?`<div class="card"><span class="eyebrow">Warum nicht einfach die Rechnungen addieren?</span>
+      <p>Die einfache Summe aller Zahlungen von ${N[i][0]} ergibt <b>${fM(nom)}</b>, der TCO VOFI <b>${fM(r.tco)}</b>. Der Unterschied kommt aus drei Dingen, die eine einfache TCO ignoriert:</p>
+      <ul class="why">
+        <li><span class="k">ZEIT</span><span><b>Wann gezahlt wird, zählt.</b> Ein Kauf heute bindet Geld sofort, laufende Kosten verteilen sich über die Jahre.</span></li>
+        <li><span class="k">ZINS</span><span><b>Gebundenes Geld bringt keine Zinsen</b>, und Kredite kosten Zinsen. Hier netto ${fM(interest)} über 3 Jahre.</span></li>
+        <li><span class="k">STEUER</span><span><b>Kosten und Abschreibungen senken die Steuer</b> (UK: ${pct(p.tax)}). Hier ${fM(taxSave)} Steuerersparnis über 3 Jahre.</span></li>
+      </ul></div>`
+    :`<div class="card"><span class="eyebrow">Why not just add up the bills?</span>
+      <p>The plain sum of all payments for ${N[i][0]} is <b>${fM(nom)}</b>, the TCO VOFI is <b>${fM(r.tco)}</b>. The difference comes from three things a simple TCO ignores:</p>
+      <ul class="why">
+        <li><span class="k">TIME</span><span><b>When you pay matters.</b> A purchase today ties up money at once, while running costs spread over the years.</span></li>
+        <li><span class="k">INTEREST</span><span><b>Tied-up money earns no interest</b>, and loans cost interest. Here a net ${fM(interest)} over 3 years.</span></li>
+        <li><span class="k">TAX</span><span><b>Costs and depreciation reduce tax</b> (UK: ${pct(p.tax)}). Here ${fM(taxSave)} of tax saved over 3 years.</span></li>
+      </ul></div>`;
+  const rule=lang==='de'
+    ?`<div class="rule big" style="grid-column:1/-1"><span class="ic" aria-hidden="true">↓</span><p><b>Merksatz: Niedriger TCO VOFI ist besser.</b> Er misst, wie viel Vermögen eine Option nach 3 Jahren kostet. Die Option mit der kleinsten Zahl ist die günstigste. Aktuell (Cash, streng nach Methode): <b>${N[best][0]} · ${N[best][1]}</b> mit ${fM(c[best])}, am teuersten ist ${N[worst][0]} · ${N[worst][1]} mit ${fM(c[worst])}.</p></div>`
+    :`<div class="rule big" style="grid-column:1/-1"><span class="ic" aria-hidden="true">↓</span><p><b>Rule of thumb: lower TCO VOFI is better.</b> It measures how much wealth an option costs after 3 years. The option with the smallest number is the cheapest. Right now (cash, strictly by the method): <b>${N[best][0]} · ${N[best][1]}</b> at ${fM(c[best])}, while the most expensive is ${N[worst][0]} · ${N[worst][1]} at ${fM(c[worst])}.</p></div>`;
+  el.innerHTML=ex+why+rule;
+}
+
+/* ---------- Sensitivity key cards (plain words) ---------- */
+const SENS={};
+function crossVol(xs,a,b){ // first volume where series a becomes cheaper than b (log interpolation)
+  for(let k=1;k<xs.length;k++){const d0=a[k-1]-b[k-1],d1=a[k]-b[k];if(d0>0&&d1<=0){const f=d0/(d0-d1);return Math.pow(2,Math.log2(xs[k-1])+f*(Math.log2(xs[k])-Math.log2(xs[k-1])))}}
+  return a[0]<=b[0]?0:null;
+}
+function renderSensKey(){
+  const el=document.getElementById('sensKey');if(!el||!SENS.be||!SENS.tor||!SENS.obs)return;
+  const {xs,series}=SENS.be,N=NAMES(),v=A.vol1;
+  const vD=crossVol(xs,series[3],series[1]),vC=crossVol(xs,series[2],series[1]);
+  const fmtV=x=>x===null?null:(x===0?L('any size','jeder Größe'):tok(x,x<1?2:1));
+  const above=x=>x!==null&&v>=x;
+  let c1;
+  if(lang==='de'){
+    c1=`<p>${vD===null?`Eigene DGX (D) wird im gesamten Bereich bis 64 Bio. Token/Jahr <b>nie günstiger</b> als die gemanagte API (B).`:`Eigene DGX (D) wird ab etwa <b>${fmtV(vD)} Token pro Jahr</b> günstiger als die gemanagte API (B).`} ${vC===null?`Gemietete GPUs (C) schaffen das ebenfalls nicht.`:`Gemietete GPUs (C) schaffen das ab etwa <b>${fmtV(vC)} Token</b>.`}</p>
+    <p>Revolut liegt bei <b>${tok(v)}</b>, also ${above(vD)?'<b>über</b> der Schwelle für eigene Hardware':(above(vC)?'über der Schwelle für gemietete GPUs, aber <b>unter</b> der für eigene Hardware':'<b>unter</b> der Schwelle, ab der sich Self-Hosting lohnt')}. Kleinere Unternehmen liegen meist weit darunter.</p>`;
+  }else{
+    c1=`<p>${vD===null?`Owned DGX (D) is <b>never cheaper</b> than the managed API (B) anywhere up to 64T tokens a year.`:`Owned DGX (D) becomes cheaper than the managed API (B) from about <b>${fmtV(vD)} tokens a year</b>.`} ${vC===null?`Rented GPUs (C) never get there either.`:`Rented GPUs (C) get there from about <b>${fmtV(vC)}</b>.`}</p>
+    <p>Revolut is at <b>${tok(v)}</b>, which is ${above(vD)?'<b>above</b> the line for owned hardware':(above(vC)?'above the line for rented GPUs but <b>below</b> the line for owned hardware':'<b>below</b> the line where self-hosting pays off')}. Smaller companies are usually far below it.</p>`;
+  }
+  const top=SENS.tor.rows.slice(0,3);
+  const c2=`<p>${L('These three assumptions move the gap between owned DGX (D) and the managed API (B) the most:','Diese drei Annahmen verschieben den Abstand zwischen eigener DGX (D) und gemanagter API (B) am stärksten:')}</p>
+    <ul>${top.map(r=>`<li><span>${r.lab} <span class="muted small">(${r.flo} → ${r.fhi})</span></span><span>± ${fM(Math.abs(r.hi-r.lo)/2)}</span></li>`).join('')}</ul>
+    <p>${L('If you are unsure about one of these, check it first. Small changes elsewhere hardly matter.','Bist du bei einer davon unsicher, prüfe sie zuerst. Kleine Änderungen an anderen Stellen spielen kaum eine Rolle.')}</p>`;
+  const o=SENS.obs,step=Math.round(0.1/0.025),k0=Math.max(0,Math.min(o.xs.length-1-step,Math.round(A.obsol/0.025)));
+  const dD=o.series[3][k0+step]-o.series[3][k0],dC=o.series[2][k0+step]-o.series[2][k0];
+  const c3=lang==='de'
+    ?`<div class="big2">+${fM(dD)}</div><p>So viel teurer wird <b>eigene Hardware (D)</b> über 3 Jahre, wenn neue Chips nur <b>10 Prozentpunkte schneller</b> besser und billiger werden (heute angenommen: ${pct(A.obsol)} pro Jahr). Gemietete GPUs (C): +${fM(dC)}. Die APIs (A, B): <b>±0</b>, dort trägt der Anbieter das Risiko.</p><p>Wer schnellen Fortschritt erwartet, sollte <b>mieten statt kaufen</b>.</p>`
+    :`<div class="big2">+${fM(dD)}</div><p>That is how much more <b>owned hardware (D)</b> costs over 3 years if new chips get better and cheaper just <b>10 points faster</b> (current assumption: ${pct(A.obsol)} a year). Rented GPUs (C): +${fM(dC)}. The APIs (A, B): <b>±0</b>, because the provider carries that risk.</p><p>If you expect fast progress, <b>rent rather than buy</b>.</p>`;
+  el.innerHTML=[
+    [L('① Size','① Größe'),L('From what size does owning pay off?','Ab welcher Größe lohnt sich eigene Hardware?'),c1],
+    [L('② Biggest levers','② Größte Hebel'),L('Which assumptions matter most?','Welche Annahmen sind am wichtigsten?'),c2],
+    [L('③ Chip progress','③ Chip-Fortschritt'),L('What if new GPUs arrive faster?','Was, wenn neue GPUs schneller kommen?'),c3]
+  ].map(([n,h,b])=>`<div class="sk"><span class="sk-n">${n}</span><h3>${h}</h3>${b}</div>`).join('');
+}
+
+/* ---------- Obsolescence sensitivity ---------- */
+function obsImpact(){const w=runAll(A,true),z=runAll({...A,obsol:0},true);return {C:w.res[2].tco-z.res[2].tco,D:w.res[3].tco-z.res[3].tco}}
+function renderObs(){
+  const el=document.getElementById('obsChart'),W=cw(el),nar=W<560,H=nar?280:310,left=lang==='de'?64:52,right=nar?26:34,top=18,bottom=46,N=NAMES(),SH=SHORT();
+  const xs=[];for(let k=0;k<=24;k++)xs.push(k*0.025);
+  const idx=[1,2,3],series={1:[],2:[],3:[]};let aRef=0;
+  xs.forEach(o=>{const r=runAll({...A,obsol:o},true);idx.forEach(i=>series[i].push(r.res[i].tco));aRef=r.res[0].tco});
+  const all=idx.flatMap(i=>series[i]),mn=Math.min(...all),mx=Math.max(...all);
+  const st=niceTicks(Math.max(1,(mx-mn)),4);const step=st[1]||1;const lo=Math.max(0,Math.floor(mn*0.92/step)*step),hi=Math.ceil(mx*1.04/step)*step;
+  const X=o=>left+(W-left-right)*o/0.6,Y=v=>top+(H-top-bottom)*(1-(v-lo)/(hi-lo));
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Obsolescence"><g class="grid">`;
+  for(let v=lo;v<=hi+1e-9;v+=step)s+=`<line x1="${left}" x2="${W-right}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${left-6}" y="${Y(v)+4}" text-anchor="end">${axM(+v.toFixed(4))}</text>`;
+  (nar?[0,0.2,0.4,0.6]:[0,0.1,0.2,0.3,0.4,0.5,0.6]).forEach(o=>s+=`<text x="${X(o)}" y="${H-bottom+18}" text-anchor="middle">${pct(o)}</text>`);
+  s+=`</g><text x="${(left+W-right)/2}" y="${H-6}" text-anchor="middle">${L('Annual price-performance gain of new GPU generations','Jährlicher Preis-Leistungs-Gewinn neuer GPU-Generationen')}</text>`;
+  s+=`<line x1="${X(A.obsol)}" x2="${X(A.obsol)}" y1="${top}" y2="${H-bottom}" style="stroke:var(--ink)" stroke-dasharray="3 4"/><text class="lab" x="${X(A.obsol)+6}" y="${top+10}">${L('current','aktuell')} ${pct(A.obsol)}</text>`;
+  idx.forEach(i=>{const sr=series[i];s+=`<path d="${sr.map((v,k)=>(k?'L':'M')+X(xs[k]).toFixed(1)+','+Y(v).toFixed(1)).join('')}" fill="none" style="stroke:var(${COLORS[i]})" stroke-width="2" stroke-linejoin="round"/>`;
+    const k=xs.length-1;s+=`<text class="val" x="${X(xs[k])+6}" y="${Y(sr[k])+4}">${N[i][0]}</text>`});
+  // crossover marker D vs B
+  let cross=null;for(let k=1;k<xs.length;k++){const d0=series[3][k-1]-series[1][k-1],d1=series[3][k]-series[1][k];if(d0<=0&&d1>0||d0>0&&d1<=0){cross=xs[k-1]+(xs[k]-xs[k-1])*(-d0)/(d1-d0);break}}
+  if(cross!==null)s+=`<circle cx="${X(cross)}" cy="${Y(series[1][Math.round(cross/0.025)])}" r="5" style="fill:var(--surface);stroke:var(--ink)" stroke-width="2"/>`;
+  s+=`<line id="xh2" x1="0" x2="0" y1="${top}" y2="${H-bottom}" style="stroke:var(--faint)" visibility="hidden"/><rect id="ov2" x="${left}" y="${top}" width="${W-left-right}" height="${H-top-bottom}" fill="transparent"/></svg>`;
+  const ob=obsImpact();
+  const crossTxt=cross===null?L(`Owned DGX (D) stays ${series[3][0]>series[1][0]?'more expensive':'cheaper'} than the managed API (B) across the whole range.`,`Die eigene DGX (D) bleibt im gesamten Bereich ${series[3][0]>series[1][0]?'teurer':'günstiger'} als die gemanagte API (B).`)
+    :L(`The circle marks where owned DGX (D) and the managed API (B) swap places, at about ${pct(cross)} a year.`,`Der Kreis markiert, wo eigene DGX (D) und gemanagte API (B) die Plätze tauschen, bei etwa ${pct(cross)} pro Jahr.`);
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline"><h3>${L('③ How much does fast chip progress hurt?','③ Wie stark schadet schneller Chip-Fortschritt?')}</h3><div class="legend">${idx.map(i=>`<span><span class="dot" style="background:var(${COLORS[i]})"></span>${N[i][0]} · ${SH[i]}</span>`).join('')}</div></div><p class="howto">${L('<b>How to read it:</b> further right means new NVIDIA generations arrive faster and cheaper. A line that rises steeply is hurt by that progress. A flat line is not affected.','<b>So liest du es:</b> Weiter rechts bedeutet: Neue NVIDIA-Generationen kommen schneller und billiger. Eine steil steigende Linie leidet unter diesem Fortschritt. Eine flache Linie ist nicht betroffen.')} (${L('extended','erweiterter')} TCO VOFI)</p>`+s+
+  `<p class="small muted">${L(`Owned hardware (D) is locked to its purchase generation, so it misses every later price-performance gain. Rented GPUs (C) can renew yearly and miss only part of it. The managed API (B) and the frontier API (A, flat at ${fM(aRef)}, not shown) pass the hardware risk to the provider. At the current setting obsolescence adds ${fM(ob.D)} to D and ${fM(ob.C)} to C. ${crossTxt}`,`Eigene Hardware (D) bleibt an ihre Kaufgeneration gebunden und verpasst jeden späteren Preis-Leistungs-Gewinn. Gemietete GPUs (C) können jährlich erneuert werden und verpassen nur einen Teil davon. Bei der gemanagten API (B) und der Frontier-API (A, konstant bei ${fM(aRef)}, nicht dargestellt) trägt der Anbieter das Hardwarerisiko. Bei der aktuellen Einstellung erhöht die Veralterung D um ${fM(ob.D)} und C um ${fM(ob.C)}. ${crossTxt}`)}</p>`;
+  SENS.obs={xs,series,cross};
+  const svg=el.querySelector('svg'),ov=svg.querySelector('#ov2'),xh=svg.querySelector('#xh2');
+  hover(ov,e=>{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const p=pt.matrixTransform(svg.getScreenCTM().inverse());
+    let k=Math.round((p.x-left)/(W-left-right)*(xs.length-1));k=Math.max(0,Math.min(xs.length-1,k));
+    xh.setAttribute('x1',X(xs[k]));xh.setAttribute('x2',X(xs[k]));xh.setAttribute('visibility','visible');
+    const order=idx.map(i=>[i,series[i][k]]).sort((a,b)=>a[1]-b[1]);
+    showTip(e,`<b>${L('Obsolescence','Veralterung')} ${pct(xs[k])}${L('/yr','/Jahr')}</b>`+order.map(([i,v])=>`<div class="r"><span><span class="dot" style="background:var(${COLORS[i]});margin-right:6px"></span>${N[i][0]} · ${SH[i]}</span><span>${fM(v)}</span></div>`).join(''))},()=>xh.setAttribute('visibility','hidden'));
+}
+
+/* ---------- Lab ---------- */
+const LAB=()=>[
+  [L('Volume & prices','Volumen & Preise'),[['vol1',L('Year-1 tokens','Token Jahr 1'),1,30,0.5,v=>tok(v)],['growth',L('Volume growth / yr','Volumenwachstum / Jahr'),0,0.8,0.05,pct],['pFrontier',L('Frontier API $/M blended','Frontier-API $/Mio. Mischpreis'),0.5,4,0.05,v=>usd(v)],['pOpen',L('Managed open-weight $/M','Gemanagte Open-Weight $/Mio.'),0.1,1.2,0.05,v=>usd(v)],['priceDecline',L('API/GPU price decline / yr','API-/GPU-Preisrückgang / Jahr'),0,0.4,0.05,pct]]],
+  [L('Hardware','Hardware'),[['gpuHour',L('Reserved B200 $/GPU-h','Reservierte B200 $/GPU-h'),2,8,0.1,v=>usd(v)],['dgxPrice',L('DGX B200 price','DGX-B200-Preis'),0.3,0.8,0.01,usdK],['salvage',L('Salvage after 3 yrs','Restwert nach 3 Jahren'),0,0.4,0.01,pct],['kwh',L('Power $/kWh','Strom $/kWh'),0.08,0.4,0.01,v=>usd(v)],['tuning',L('Tuning headroom by yr 3','Tuning-Reserve bis Jahr 3'),0,1,0.05,pct]]],
+  [L('People & finance','Personal & Finanzen'),[['fteCost',L('FTE cost','Kosten pro VZÄ'),0.12,0.4,0.01,usdK],['fteD',L('Team FTE (owned DGX)','Team-VZÄ (eigene DGX)'),2,15,1,v=>v],['fteC',L('Team FTE (rented GPUs)','Team-VZÄ (gemietete GPUs)'),2,15,1,v=>v],['rc',L('Creditor rate r_c','Habenzins r_c'),0,0.15,0.005,pct],['rd',L('Debtor rate r_d','Sollzins r_d'),0,0.15,0.005,pct],['tax',L('Tax rate','Steuersatz'),0,0.4,0.01,pct]]],
+  [L('Hidden opportunity costs','Versteckte Opportunitätskosten'),[['waitD',L('Peak waiting min/day · D','Wartezeit Min./Tag · D'),0,10,0.5,v=>nf(v,1)],['waitC',L('Peak waiting min/day · C','Wartezeit Min./Tag · C'),0,10,0.5,v=>nf(v,1)],['waitB',L('Waiting min/day · B','Wartezeit Min./Tag · B'),0,5,0.5,v=>nf(v,1)],['qualityPct',L('Quality gap vs frontier','Qualitätslücke vs. Frontier'),0,3,0.05,v=>nf(v,2)+(lang==='de'?' %':'%')],['obsol',L('Technology obsolescence / yr','Technologische Veralterung / Jahr'),0,0.6,0.025,pct],['talentPrem',L('Talent premium / FTE','Talent-Aufschlag / VZÄ'),0,0.6,0.05,usdK],['reuseD',L('Off-peak reuse credit · D','Gutschrift Nachtkapazität · D'),0,1.5,0.05,v=>fM(v)]]],
+];
+let labFmt={};
+function renderLab(){
+  const G=LAB();labFmt={};
+  document.getElementById('labGrid').innerHTML=G.map(([g,cs])=>`<fieldset><legend>${g}</legend>${cs.map(([k,l,mi,ma,st,f])=>{labFmt[k]=f;return `<div class="ctl"><label for="in-${k}">${l}<output id="out-${k}">${f(A[k])}</output></label><input type="range" id="in-${k}" min="${mi}" max="${ma}" step="${st}" value="${A[k]}"></div>`}).join('')}</fieldset>`).join('');
+  G.forEach(([,cs])=>cs.forEach(([k])=>{const i=document.getElementById('in-'+k);i.addEventListener('input',()=>{A[k]=+i.value;document.getElementById('out-'+k).textContent=labFmt[k](A[k]);schedule()})}));
+}
+let raf=0;function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(render)}
+
+/* ---------- Language switch ---------- */
+function setLang(l,save){
+  lang=l;if(save){try{localStorage.setItem('tco-vofi-lang',l)}catch(e){}}
+  // keep checkbox state (inputs live outside data-i spans, so they survive)
+  applyStatic();paintThemeBtn();renderValidation();renderLab();render();
+}
+document.getElementById('langBtn').addEventListener('click',()=>setLang(lang==='de'?'en':'de',true));
+document.getElementById('hiddenToggle').addEventListener('change',e=>{hiddenOn=e.target.checked;render()});
+document.getElementById('linearDep').addEventListener('change',e=>{linear=e.target.checked;render()});
+document.getElementById('resetBtn').addEventListener('click',()=>{A=structuredClone(BASE);linear=false;document.getElementById('linearDep').checked=false;renderLab();render()});
+let lastW=innerWidth,rz=0;
+addEventListener('resize',()=>{if(innerWidth===lastW)return;lastW=innerWidth;clearTimeout(rz);rz=setTimeout(()=>{hideTip();renderTCOChart();renderNomChart();renderBE();renderTornado();renderObs()},150)});
+
+(function init(){
+  let l=null;
+  const h=(location.hash||'').toLowerCase();
+  if(h==='#de'||h==='#en')l=h.slice(1);
+  if(!l){try{const s=localStorage.getItem('tco-vofi-lang');if(s==='de'||s==='en')l=s}catch(e){}}
+  if(!l)l=((navigator.language||'en').toLowerCase().startsWith('de'))?'de':'en';
+  setLang(l,false);
+})();
+</script>
