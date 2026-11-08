@@ -1,23 +1,31 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Local LLM TCO VOFI</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#141925">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="TCO VOFI">
 <meta property="og:title" content="Ist ein lokales LLM wirklich 10× günstiger? TCO VOFI zu Revoluts GLM-Wechsel">
 <meta property="og:description" content="Revolut meldet 90 % weniger KI-Kosten durch selbst gehostetes GLM. Eine interaktive TCO-VOFI-Analyse mit Zinsen, Steuern, Restwert und Opportunitätskosten zeigt, dass der Vorteil weit unter 10× liegt.">
 <meta property="og:url" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/">
-<meta property="og:image" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/og-image.jpg">
-<meta property="og:image:secure_url" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/og-image.jpg">
+<meta property="og:image" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/og-preview.jpg">
+<meta property="og:image:secure_url" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/og-preview.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="628">
-<meta property="og:image:alt" content="TCO VOFI der vier Alternativen nach 3 Jahren: Frontier-API 36,5 Mio. $, gemanagte Open-Weight-API 18,7 Mio. $ (niedrigste), gemietete B200 22,2 Mio. $, eigene DGX B200 26,6 Mio. $">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Ist ein lokales LLM wirklich 10× günstiger? TCO VOFI nach 3 Jahren: Frontier-API 36,5 Mio. $, gemanagte Open-Weight-API 18,7 Mio. $ (niedrigste), gemietete B200 22,2 Mio. $, eigene DGX B200 26,6 Mio. $">
 <meta property="og:locale" content="de_DE">
 <meta property="og:locale:alternate" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Ist ein lokales LLM wirklich 10× günstiger? TCO VOFI zu Revoluts GLM-Wechsel">
 <meta name="twitter:description" content="Revolut meldet 90 % weniger KI-Kosten durch selbst gehostetes GLM. Eine interaktive TCO-VOFI-Analyse mit Zinsen, Steuern, Restwert und Opportunitätskosten zeigt, dass der Vorteil weit unter 10× liegt.">
-<meta name="twitter:image" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/og-image.jpg">
+<meta name="twitter:image" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/og-preview.jpg">
+<meta name="twitter:image:alt" content="Ist ein lokales LLM wirklich 10× günstiger? TCO VOFI nach 3 Jahren: Frontier-API 36,5 Mio. $, gemanagte Open-Weight-API 18,7 Mio. $ (niedrigste), gemietete B200 22,2 Mio. $, eigene DGX B200 26,6 Mio. $">
 <meta name="author" content="Dr. Lofi Dewanto">
 <meta property="article:author" content="Dr. Lofi Dewanto">
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -215,6 +223,7 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
 .chart svg{touch-action:pan-y}
 
 /* phone */
+.swipe-hint{display:none}
 @media (max-width:640px){
   body{font-size:15px;line-height:1.55}
   header.hero{padding-block:28px 22px}
@@ -238,9 +247,24 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
   tr.key td:first-child{background:var(--accent-soft)}
   tr.grp td:first-child{background:var(--sunk);max-width:none}
   table.facts td:first-child{min-width:110px}
-  .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-4px;padding:2px 4px 4px}
-  .tabs::-webkit-scrollbar{display:none}
-  .tabs button{white-space:nowrap;padding:8px 12px}
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .tabs button{white-space:normal;text-align:left;line-height:1.25;padding:9px 11px;border-radius:10px;font-size:.82rem;align-items:flex-start}
+  .tabs button .dot{flex:none;margin-top:4px}
+  .rail nav{-webkit-mask-image:linear-gradient(to right,#000 82%,transparent);mask-image:linear-gradient(to right,#000 82%,transparent);padding-right:18px}
+  /* Step 1 assumptions: stacked cards instead of a 3-column table */
+  #assumpTable thead{display:none}
+  #assumpTable,#assumpTable tbody,#assumpTable tr,#assumpTable td{display:block;width:100%}
+  #assumpTable tr{display:grid;grid-template-columns:1fr;gap:3px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  #assumpTable tr:last-child{border-bottom:0}
+  #assumpTable td{padding:0;border:0;min-width:0!important;max-width:none!important;position:static!important;box-shadow:none!important;background:none}
+  #assumpTable td:first-child{font-weight:600;font-size:.86rem}
+  #assumpTable td:nth-child(2){text-align:left;white-space:normal;font-size:.86rem;color:var(--accent)}
+  #assumpTable td:nth-child(3){font-size:.8rem;line-height:1.4}
+  #assumpTable tr.grp{display:block;background:var(--sunk);padding:8px 12px}
+  #assumpTable tr.grp td{background:none}
+  .swipe-hint{display:flex;align-items:center;gap:6px;font:500 .72rem/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:-8px}
+  .swipe-hint[hidden]{display:none}
+  .tbl-wrap[data-wide]{background:linear-gradient(to left,var(--surface) 40%,transparent) right/34px 100% no-repeat local,radial-gradient(farthest-side at 100% 50%,color-mix(in srgb,var(--ink) 22%,transparent),transparent) right/12px 100% no-repeat scroll,var(--surface)}
   .toolbar{gap:8px}
   .lab fieldset{padding:10px 12px 12px}
   input[type=range]{height:28px}
@@ -307,6 +331,17 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
 .lang-btn .off{color:var(--faint);font-weight:500}
 @media (max-width:640px){.lang-btn{padding:0 10px;min-width:40px}}
 .h-cite{font-weight:500;color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+/* table of contents */
+section[id]{scroll-margin-top:calc(52px + env(safe-area-inset-top,0px))}
+.toc{padding-block:0 36px}
+.toc-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;display:grid;gap:12px}
+.toc ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2px 20px;counter-reset:toc}
+.toc li{counter-increment:toc}
+.toc a{display:grid;grid-template-columns:2.2em 1fr;gap:6px;align-items:baseline;padding:7px 8px;margin-inline:-8px;border-radius:6px;text-decoration:none;color:var(--ink)}
+.toc a::before{content:counter(toc,decimal-leading-zero);font:500 .8rem var(--f-mono);color:var(--faint)}
+.toc a:hover{background:var(--sunk)}
+.toc a:hover::before{color:var(--accent)}
+.toc a small{grid-column:2;display:block;color:var(--muted);font-size:.82rem;line-height:1.4}
 </style>
 
 <div class="rail">
@@ -333,6 +368,26 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
     </div>
   </div>
 </header>
+
+<nav class="toc" aria-label="Table of contents">
+  <div class="wrap">
+    <div class="toc-box" data-i="toc"><span class="eyebrow">Contents</span><h2 style="font-size:1.3rem">Table of contents</h2>
+      <ol>
+        <li><a href="#summary">Summary<small>Result and the four options in plain words</small></a></li>
+        <li><a href="#case">What Revolut reported<small>The facts behind the 90% claim</small></a></li>
+        <li><a href="#critique">Eight problems with "10× cheaper"<small>Why the headline comparison is weak</small></a></li>
+        <li><a href="#method">TCO VOFI in three steps<small>How the method works</small></a></li>
+        <li><a href="#step1">Step 1 · Main data<small>Four alternatives, one volume</small></a></li>
+        <li><a href="#step2">Step 2 · VOFI per alternative<small>Year-by-year financial plans</small></a></li>
+        <li><a href="#step3">Step 3 · TCO analysis<small>Comparison in Table 5 format</small></a></li>
+        <li><a href="#opportunity">Opportunity costs<small>Explicit and hidden</small></a></li>
+        <li><a href="#sensitivity">Sensitivity<small>Where the decision flips</small></a></li>
+        <li><a href="#lab">Assumption lab<small>Change the inputs yourself</small></a></li>
+        <li><a href="#recommend">Recommendations<small>A better way to run this TCO</small></a></li>
+        <li><a href="#sources">Sources<small>References and further reading</small></a></li>
+      </ol></div>
+  </div>
+</nav>
 
 <!-- SUMMARY -->
 <section id="summary">
@@ -558,6 +613,21 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
 let lang='en';
 const L=(en,de)=>lang==='de'?de:en;
 const DE={
+toc:`<span class="eyebrow">Inhalt</span><h2 style="font-size:1.3rem">Inhaltsverzeichnis</h2>
+      <ol>
+        <li><a href="#summary">Zusammenfassung<small>Ergebnis und die vier Optionen in einfachen Worten</small></a></li>
+        <li><a href="#case">Was Revolut berichtet hat<small>Die Fakten hinter den 90 %</small></a></li>
+        <li><a href="#critique">Acht Probleme mit „10× günstiger“<small>Warum der Schlagzeilen-Vergleich schwach ist</small></a></li>
+        <li><a href="#method">TCO VOFI in drei Schritten<small>So funktioniert die Methode</small></a></li>
+        <li><a href="#step1">Schritt 1 · Ausgangsdaten<small>Vier Alternativen, ein Volumen</small></a></li>
+        <li><a href="#step2">Schritt 2 · VOFI je Alternative<small>Finanzpläne Jahr für Jahr</small></a></li>
+        <li><a href="#step3">Schritt 3 · TCO-Analyse<small>Vergleich im Format von Tabelle 5</small></a></li>
+        <li><a href="#opportunity">Opportunitätskosten<small>Explizit und versteckt</small></a></li>
+        <li><a href="#sensitivity">Sensitivität<small>Wo die Entscheidung kippt</small></a></li>
+        <li><a href="#lab">Annahmen-Labor<small>Eingaben selbst verändern</small></a></li>
+        <li><a href="#recommend">Empfehlungen<small>Wie man diese TCO besser rechnet</small></a></li>
+        <li><a href="#sources">Quellen<small>Literatur und weiterführende Links</small></a></li>
+      </ol>`,
 nav:`<a href="#summary">Zusammenfassung</a><a href="#case">Der Fall</a><a href="#critique">Kritik</a><a href="#method">Methode</a>
       <a href="#step1">1 · Daten</a><a href="#step2">2 · VOFI</a><a href="#step3">3 · TCO</a><a href="#opportunity">Opportunitätskosten</a>
       <a href="#sensitivity">Sensitivität</a><a href="#lab">Annahmen-Labor</a><a href="#recommend">Empfehlungen</a><a href="#sources">Quellen</a>`,
@@ -1218,7 +1288,7 @@ function renderObs(){
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Obsolescence"><g class="grid">`;
   for(let v=lo;v<=hi+1e-9;v+=step)s+=`<line x1="${left}" x2="${W-right}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${left-6}" y="${Y(v)+4}" text-anchor="end">${axM(+v.toFixed(4))}</text>`;
   (nar?[0,0.2,0.4,0.6]:[0,0.1,0.2,0.3,0.4,0.5,0.6]).forEach(o=>s+=`<text x="${X(o)}" y="${H-bottom+18}" text-anchor="middle">${pct(o)}</text>`);
-  s+=`</g><text x="${(left+W-right)/2}" y="${H-6}" text-anchor="middle">${L('Annual price-performance gain of new GPU generations','Jährlicher Preis-Leistungs-Gewinn neuer GPU-Generationen')}</text>`;
+  s+=`</g><text x="${(left+W-right)/2}" y="${H-6}" text-anchor="middle">${nar?L('Yearly GPU price-performance gain','GPU-Preis-Leistungs-Gewinn / Jahr'):L('Annual price-performance gain of new GPU generations','Jährlicher Preis-Leistungs-Gewinn neuer GPU-Generationen')}</text>`;
   s+=`<line x1="${X(A.obsol)}" x2="${X(A.obsol)}" y1="${top}" y2="${H-bottom}" style="stroke:var(--ink)" stroke-dasharray="3 4"/><text class="lab" x="${X(A.obsol)+6}" y="${top+10}">${L('current','aktuell')} ${pct(A.obsol)}</text>`;
   idx.forEach(i=>{const sr=series[i];s+=`<path d="${sr.map((v,k)=>(k?'L':'M')+X(xs[k]).toFixed(1)+','+Y(v).toFixed(1)).join('')}" fill="none" style="stroke:var(${COLORS[i]})" stroke-width="2" stroke-linejoin="round"/>`;
     const k=xs.length-1;s+=`<text class="val" x="${X(xs[k])+6}" y="${Y(sr[k])+4}">${N[i][0]}</text>`});
@@ -1278,5 +1348,17 @@ addEventListener('resize',()=>{if(innerWidth===lastW)return;lastW=innerWidth;cle
   if(!l)l=((navigator.language||'en').toLowerCase().startsWith('de'))?'de':'en';
   setLang(l,false);
   addEventListener('hashchange',()=>{const x=(location.hash||'').toLowerCase();if((x==='#de'||x==='#en')&&x.slice(1)!==lang)setLang(x.slice(1),false)});
+})();
+
+/* ---------- mobile: swipe hint for tables wider than the screen ---------- */
+(function(){
+  const hints=new Map();
+  const upd=w=>{let h=hints.get(w);const wide=w.scrollWidth>w.clientWidth+4&&w.clientWidth<640;
+    if(wide&&!h){h=document.createElement('div');h.className='swipe-hint';h.setAttribute('aria-hidden','true');w.before(h);hints.set(w,h)}
+    if(h){h.hidden=!wide;h.textContent=L('Swipe table sideways →','Tabelle seitlich wischen →')}
+    if(wide)w.setAttribute('data-wide','');else w.removeAttribute('data-wide')};
+  const ro=new ResizeObserver(es=>es.forEach(e=>upd(e.target.closest?e.target.closest('.tbl-wrap'):e.target)));
+  document.querySelectorAll('.tbl-wrap').forEach(w=>{ro.observe(w);const t=w.querySelector('table');if(t)ro.observe(t)});
+  document.getElementById('langBtn').addEventListener('click',()=>hints.forEach((h,w)=>upd(w)));
 })();
 </script>
