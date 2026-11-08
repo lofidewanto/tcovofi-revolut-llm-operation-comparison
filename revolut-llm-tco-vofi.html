@@ -78,7 +78,12 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .brand b{color:var(--accent)}
 .rail nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1}
 .rail nav::-webkit-scrollbar{display:none}
-.rail nav a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:.84rem;padding:6px 10px;border-radius:999px}
+.rail .wrap{max-width:1320px}
+.rail nav{gap:0}
+.rail nav a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:.84rem;padding:6px 7px;border-radius:999px}
+.rail nav.more-r{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent)}
+.rail nav.more-l{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 48px),transparent)}
+.rail nav.more-l.more-r{-webkit-mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(to right,transparent,#000 48px,#000 calc(100% - 48px),transparent)}
 .rail nav a:hover{background:var(--sunk);color:var(--ink)}
 
 /* hero */
@@ -250,7 +255,6 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
   .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .tabs button{white-space:normal;text-align:left;line-height:1.25;padding:9px 11px;border-radius:10px;font-size:.82rem;align-items:flex-start}
   .tabs button .dot{flex:none;margin-top:4px}
-  .rail nav{-webkit-mask-image:linear-gradient(to right,#000 82%,transparent);mask-image:linear-gradient(to right,#000 82%,transparent);padding-right:18px}
   /* Step 1 assumptions: stacked cards instead of a 3-column table */
   #assumpTable thead{display:none}
   #assumpTable,#assumpTable tbody,#assumpTable tr,#assumpTable td{display:block;width:100%}
@@ -349,8 +353,8 @@ section[id]{scroll-margin-top:calc(52px + env(safe-area-inset-top,0px))}
     <div class="brand">TCO <b>VOFI</b></div>
     <nav aria-label="Sections" data-i="nav">
       <a href="#summary">Summary</a><a href="#case">The case</a><a href="#critique">Critique</a><a href="#method">Method</a>
-      <a href="#step1">1 · Data</a><a href="#step2">2 · VOFI</a><a href="#step3">3 · TCO</a><a href="#opportunity">Opportunity costs</a>
-      <a href="#sensitivity">Sensitivity</a><a href="#lab">Assumption lab</a><a href="#recommend">Recommendations</a><a href="#sources">Sources</a>
+      <a href="#step1">1 · Data</a><a href="#step2">2 · VOFI</a><a href="#step3">3 · TCO</a><a href="#opportunity">Opportunity</a>
+      <a href="#sensitivity">Sensitivity</a><a href="#lab">Lab</a><a href="#recommend">Recommendations</a><a href="#sources">Sources</a>
     </nav>
     <button class="lang-btn" id="langBtn" type="button" aria-label="Deutsch / English"><span id="langOn">EN</span><span class="off" id="langOff">DE</span></button>
     <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme"></button>
@@ -628,9 +632,9 @@ toc:`<span class="eyebrow">Inhalt</span><h2 style="font-size:1.3rem">Inhaltsverz
         <li><a href="#recommend">Empfehlungen<small>Wie man diese TCO besser rechnet</small></a></li>
         <li><a href="#sources">Quellen<small>Literatur und weiterführende Links</small></a></li>
       </ol>`,
-nav:`<a href="#summary">Zusammenfassung</a><a href="#case">Der Fall</a><a href="#critique">Kritik</a><a href="#method">Methode</a>
-      <a href="#step1">1 · Daten</a><a href="#step2">2 · VOFI</a><a href="#step3">3 · TCO</a><a href="#opportunity">Opportunitätskosten</a>
-      <a href="#sensitivity">Sensitivität</a><a href="#lab">Annahmen-Labor</a><a href="#recommend">Empfehlungen</a><a href="#sources">Quellen</a>`,
+nav:`<a href="#summary">Überblick</a><a href="#case">Der Fall</a><a href="#critique">Kritik</a><a href="#method">Methode</a>
+      <a href="#step1">1 · Daten</a><a href="#step2">2 · VOFI</a><a href="#step3">3 · TCO</a><a href="#opportunity">Opportunität</a>
+      <a href="#sensitivity">Sensitivität</a><a href="#lab">Labor</a><a href="#recommend">Empfehlungen</a><a href="#sources">Quellen</a>`,
 hero:`<span class="eyebrow">Fallstudie · Investitionsrechnung für KI-Infrastruktur · Nov. 2026</span>
     <h1>Ist ein lokales LLM wirklich 10× günstiger? Eine TCO-VOFI-Analyse von Revoluts Wechsel zu GLM</h1>
     <p class="byline">Von <b>Dr. Lofi Dewanto</b> · Ebenfalls vom Autor: <a href="https://lofidewanto.github.io/ai-or-die/" target="_blank" rel="noopener">AI or Die</a></p>
@@ -1350,6 +1354,13 @@ addEventListener('resize',()=>{if(innerWidth===lastW)return;lastW=innerWidth;cle
   addEventListener('hashchange',()=>{const x=(location.hash||'').toLowerCase();if((x==='#de'||x==='#en')&&x.slice(1)!==lang)setLang(x.slice(1),false)});
 })();
 
+/* ---------- top menu: fade the edge that has more links ---------- */
+(function(){
+  const nv=document.querySelector('.rail nav');if(!nv)return;
+  const upd=()=>{const m=nv.scrollWidth-nv.clientWidth;nv.classList.toggle('more-r',m>2&&nv.scrollLeft<m-2);nv.classList.toggle('more-l',m>2&&nv.scrollLeft>2)};
+  nv.addEventListener('scroll',upd,{passive:true});new ResizeObserver(upd).observe(nv);
+  new MutationObserver(upd).observe(nv,{childList:true});upd();
+})();
 /* ---------- mobile: swipe hint for tables wider than the screen ---------- */
 (function(){
   const hints=new Map();
