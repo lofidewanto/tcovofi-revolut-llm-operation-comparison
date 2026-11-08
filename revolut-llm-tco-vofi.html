@@ -18,6 +18,8 @@
 <meta name="twitter:title" content="Ist ein lokales LLM wirklich 10× günstiger? TCO VOFI zu Revoluts GLM-Wechsel">
 <meta name="twitter:description" content="Revolut meldet 90 % weniger KI-Kosten durch selbst gehostetes GLM. Eine interaktive TCO-VOFI-Analyse mit Zinsen, Steuern, Restwert und Opportunitätskosten zeigt, dass der Vorteil weit unter 10× liegt.">
 <meta name="twitter:image" content="https://lofidewanto.github.io/tcovofi-revolut-llm-operation-comparison/og-image.jpg">
+<meta name="author" content="Dr. Lofi Dewanto">
+<meta property="article:author" content="Dr. Lofi Dewanto">
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="TCO VOFI analysis of Revolut's move from metered LLM APIs to self-hosted open-weight models.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -75,6 +77,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 header.hero{padding-block:56px 36px}
 .hero .wrap{display:grid;gap:22px}
 .hero .lede{font-size:1.12rem;color:var(--muted);max-width:62ch}
+.hero .byline{font-size:.95rem;color:var(--muted);margin:0}
+.hero .byline b{color:var(--ink);font-weight:600}
 .hero .meta{display:flex;flex-wrap:wrap;gap:8px}
 .chip{display:inline-flex;align-items:center;gap:6px;font:500 .78rem/1 var(--f-mono);padding:6px 10px;border-radius:999px;background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
 .chip.good{background:var(--good-soft);color:var(--good);border-color:transparent}
@@ -322,6 +326,7 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
   <div class="wrap" data-i="hero">
     <span class="eyebrow">Case study · Capital budgeting for AI infrastructure · Nov 2026</span>
     <h1>Is a local LLM really 10× cheaper? A TCO VOFI review of Revolut's GLM move</h1>
+    <p class="byline">By <b>Dr. Lofi Dewanto</b> · Also by the author: <a href="https://lofidewanto.github.io/ai-or-die/" target="_blank" rel="noopener">AI or Die</a></p>
     <p class="lede">Revolut says moving 2,000 engineers from metered frontier APIs to self-hosted GLM on 56 Nvidia B200s cut its AI coding bill by about 90%. This report rebuilds that decision with the TCO VOFI method (Visualization of Financial Implications). It covers four real alternatives, three years, taxes, financing, salvage value, and the opportunity costs the headline leaves out.</p>
     <div class="meta">
       <span class="chip">Horizon: 3 years</span><span class="chip">Currency: USD</span><span class="chip">UK corp. tax 25%</span><span class="chip">Method: Grob · Bensberg &amp; Dewanto</span><span class="chip warn">Inputs partly estimated</span>
@@ -543,7 +548,7 @@ footer{padding-block:32px 48px;border-top:1px solid var(--line);color:var(--mute
   </div>
 </section>
 
-<footer><div class="wrap" data-i="foot">Independent analysis for discussion. It is not affiliated with Revolut. Figures marked as estimates are assumptions, not disclosed company data. All calculations run in your browser.</div></footer>
+<footer><div class="wrap" data-i="foot">Independent analysis for discussion. It is not affiliated with Revolut. Figures marked as estimates are assumptions, not disclosed company data. All calculations run in your browser. Author: Dr. Lofi Dewanto (see also <a href="https://lofidewanto.github.io/ai-or-die/" target="_blank" rel="noopener">AI or Die</a>).</div></footer>
 
 <div class="tip" id="tip" hidden></div>
 
@@ -557,6 +562,7 @@ nav:`<a href="#summary">Zusammenfassung</a><a href="#case">Der Fall</a><a href="
       <a href="#sensitivity">Sensitivität</a><a href="#lab">Annahmen-Labor</a><a href="#recommend">Empfehlungen</a><a href="#sources">Quellen</a>`,
 hero:`<span class="eyebrow">Fallstudie · Investitionsrechnung für KI-Infrastruktur · Nov. 2026</span>
     <h1>Ist ein lokales LLM wirklich 10× günstiger? Eine TCO-VOFI-Analyse von Revoluts Wechsel zu GLM</h1>
+    <p class="byline">Von <b>Dr. Lofi Dewanto</b> · Ebenfalls vom Autor: <a href="https://lofidewanto.github.io/ai-or-die/" target="_blank" rel="noopener">AI or Die</a></p>
     <p class="lede">Laut Revolut hat der Umzug von 2.000 Entwicklern von nutzungsabhängig abgerechneten Frontier-APIs auf selbst gehostetes GLM mit 56 Nvidia-B200-GPUs die Kosten für KI-gestütztes Programmieren um etwa 90 % gesenkt. Dieser Bericht rechnet die Entscheidung mit der TCO-VOFI-Methode (Vollständiger Finanzplan) nach. Er betrachtet vier echte Alternativen über drei Jahre, mit Steuern, Finanzierung, Restwert und den Opportunitätskosten, die in der Schlagzeile fehlen.</p>
     <div class="meta">
       <span class="chip">Horizont: 3 Jahre</span><span class="chip">Währung: USD</span><span class="chip">UK-Körperschaftsteuer 25 %</span><span class="chip">Methode: Grob · Bensberg &amp; Dewanto</span><span class="chip warn">Eingaben teils geschätzt</span>
@@ -645,7 +651,7 @@ src:`<li>Bensberg, F.; Dewanto, B. L.: <a href="https://researchgate.net/profile
       <li><a href="https://vercel.com/i/self-hosted-llm" target="_blank" rel="noopener">Vercel: Self-hosted LLM economics</a>: Auslastung, Leerlaufkosten, Modellwechsel und gemanagte Open-Weight-Preise als fairer Vergleichsmaßstab.</li>
       <li>B200-Preise: <a href="https://www.morphllm.com/nvidia-b200" target="_blank" rel="noopener">MorphLLM</a>, <a href="https://www.spheron.network/blog/nvidia-b200-cloud-pricing-2026/" target="_blank" rel="noopener">Spheron</a>, <a href="https://deploybase.ai/articles/nvidia-dgx-b200-price" target="_blank" rel="noopener">DeployBase</a>. Neocloud-Tarife 3,75–7 $/GPU-h; Hyperscaler 14–27 $; ca. 490–515 Tsd. $ pro DGX B200.</li>
       <li>UK-Steuern: <a href="https://www.gov.uk/corporation-tax-rates" target="_blank" rel="noopener">Körperschaftsteuersätze (25 %)</a>, <a href="https://www.gov.uk/capital-allowances" target="_blank" rel="noopener">Capital Allowances / Full Expensing</a>.</li>`,
-foot:`Unabhängige Analyse zur Diskussion, nicht mit Revolut verbunden. Als Schätzung gekennzeichnete Zahlen sind Annahmen, keine offengelegten Unternehmensdaten. Alle Berechnungen laufen in deinem Browser.`
+foot:`Unabhängige Analyse zur Diskussion, nicht mit Revolut verbunden. Als Schätzung gekennzeichnete Zahlen sind Annahmen, keine offengelegten Unternehmensdaten. Alle Berechnungen laufen in deinem Browser. Autor: Dr. Lofi Dewanto (siehe auch <a href="https://lofidewanto.github.io/ai-or-die/" target="_blank" rel="noopener">AI or Die</a>).`
 };
 function applyStatic(){
   document.querySelectorAll('[data-i]').forEach(el=>{const k=el.dataset.i;if(!(k in DE))return;if(el._en===undefined)el._en=el.innerHTML;el.innerHTML=lang==='de'&&DE[k]!==undefined?DE[k]:el._en});
